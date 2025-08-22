@@ -1,3 +1,7 @@
+// --- CloudSaves Integration ---
+// Добавить этот импорт в начало файла:
+import { CloudSaves } from './cloudSaves.js';
+
 function _class_call_check(instance, Constructor) {
     if (!(instance instanceof Constructor)) {
         throw new TypeError("Cannot call a class as a function");
@@ -73,9 +77,13 @@ function callGameplayStop() {
     }
 }
 
+// --- CloudSaves: defaults для glow/music ---
+function getDefaultGlow() { return 0; } // bright
+function getDefaultMusic() { return 0; } // off
+
 export var Game = /*#__PURE__*/ function() {
     "use strict";
-    function Game(container, ui, loadedFont) {
+    function Game(container, ui, loadedFont, cloudLoadedStats) { // cloudLoadedStats - новые облачные значения
         _class_call_check(this, Game);
         this.container = container;
         this.ui = ui;
@@ -89,13 +97,15 @@ export var Game = /*#__PURE__*/ function() {
         this.gameState = 'playing';
         this.clock = new THREE.Clock();
         this.lastMoveDirection = new THREE.Vector2(0, 0);
-        this.highScore = 0;
-        this.highestTileValue = 0;
-        this.gamesPlayed = 0;
-        this.loadStats();
+        // --- CloudSaves: инициализация из облака, падение на локальное если облако пусто ---
+        this.highScore = cloudLoadedStats?.best ?? parseInt(localStorage.getItem('highScore') || '0', 10);
+        this.score = cloudLoadedStats?.playscore ?? 0;
+        this.highestTileValue = cloudLoadedStats?.maxtile ?? parseInt(localStorage.getItem('highestTileValue') || '0', 10);
+        this.gamesPlayed = cloudLoadedStats?.games ?? parseInt(localStorage.getItem('gamesPlayed') || '0', 10);
+        this.isGlowBright = (cloudLoadedStats?.glow ?? getDefaultGlow()) === 0; // 0: bright, 1: dark
+        this.musicPlaying = (cloudLoadedStats?.music ?? getDefaultMusic()) === 1; // 0: off, 1: on
         this.audioListener = null;
         this.backgroundMusic = null;
-        this.musicPlaying = false;
         this.musicDuration = 0;
         this.isFadingOut = false;
         this.fadeTimeout = null;
@@ -104,28 +114,42 @@ export var Game = /*#__PURE__*/ function() {
         this.mergeSound = null;
         this.setupAudio();
         this.setupControls();
-        this.updateScore(0);
+        this.updateScore(this.score); // теперь из облака
         this.ui.updateHighestTile(this.highestTileValue);
         this.ui.updateGamesPlayed(this.gamesPlayed);
+        this.sceneSetup.setGlowMode(this.isGlowBright); // Glow при старте
+        this.ui.updateGlowButtonText(this.isGlowBright);
+        this.ui.updateMusicButtonText(this.musicPlaying);
         console.log("[Game.js] Game instance created.");
     }
     _create_class(Game, [
         {
             key: "loadStats",
             value: function loadStats() {
-                this.highScore = parseInt(localStorage.getItem('highScore') || '0', 10);
-                this.highestTileValue = parseInt(localStorage.getItem('highestTileValue') || '0', 10);
-                this.gamesPlayed = parseInt(localStorage.getItem('gamesPlayed') || '0', 10);
-                console.log("[Game.js] Loaded stats: highScore = " + this.highScore + ", highestTileValue = " + this.highestTileValue + ", gamesPlayed = " + this.gamesPlayed);
+                // --- убираем, теперь работаем через облако ---
+                // this.highScore = parseInt(localStorage.getItem('highScore') || '0', 10);
+                // this.highestTileValue = parseInt(localStorage.getItem('highestTileValue') || '0', 10);
+                // this.gamesPlayed = parseInt(localStorage.getItem('gamesPlayed') || '0', 10);
+                // console.log("[Game.js] Loaded stats: highScore = " + this.highScore + ", highestTileValue = " + this.highestTileValue + ", gamesPlayed = " + this.gamesPlayed);
             }
         },
         {
             key: "saveStats",
             value: function saveStats() {
+                // --- синхронизация в облако и локалStorage ---
                 localStorage.setItem('highScore', this.highScore.toString());
                 localStorage.setItem('highestTileValue', this.highestTileValue.toString());
                 localStorage.setItem('gamesPlayed', this.gamesPlayed.toString());
-                console.log("[Game.js] Saved stats: highScore = " + this.highScore + ", highestTileValue = " + this.highestTileValue + ", gamesPlayed = " + this.gamesPlayed);
+                // CloudSaves - обновление всех статов (без music/glow, они отдельно)
+                CloudSaves.saveAll({
+                    best: this.highScore,
+                    playscore: this.score,
+                    maxtile: this.highestTileValue,
+                    games: this.gamesPlayed,
+                    glow: this.isGlowBright ? 0 : 1,
+                    music: this.musicPlaying ? 1 : 0,
+                });
+                console.log("[Game.js] Saved stats: highScore = " + this.highScore + ", highestTileValue = " + this.highestTileValue + ", gamesPlayed = " + this.gamesPlayed + " [Cloud sync]");
             }
         },
         {
@@ -157,6 +181,10 @@ export var Game = /*#__PURE__*/ function() {
                     _this.musicDuration = buffer.duration;
                     console.log("[Game.js] Background music loaded. Duration: " + _this.musicDuration + "s");
                     _this.ui.updateMusicButtonText(_this.musicPlaying);
+                    // CloudSaves: автозапуск музыки если musicPlaying==true
+                    if (_this.musicPlaying) {
+                        _this.toggleMusic();
+                    }
                 }, undefined, function(error) {
                     return console.error('[Game.js] Error loading background music:', error);
                 });
@@ -181,7 +209,7 @@ export var Game = /*#__PURE__*/ function() {
         },
         {
             key: "toggleMusic",
-            value: function toggleMusic() {
+            value: async function toggleMusic() {
                 var _this = this;
                 console.log("[Game.js] toggleMusic called. Music playing:", this.musicPlaying);
                 if (!this.backgroundMusic || !this.backgroundMusic.buffer) {
@@ -190,15 +218,12 @@ export var Game = /*#__PURE__*/ function() {
                 }
                 clearTimeout(this.fadeTimeout);
                 this.isFadingOut = false;
-                console.log("[Game.js] AudioContext state:", this.audioListener.context.state);
                 if (this.musicPlaying) {
-                    console.log("[Game.js] Pausing music...");
                     this.backgroundMusic.pause();
                     this.musicPlaying = false;
                     this.backgroundMusic.setVolume(this.originalMusicVolume);
                 } else {
                     var playMusic = function() {
-                        console.log("[Game.js] Playing music...");
                         _this.backgroundMusic.setVolume(_this.originalMusicVolume);
                         _this.backgroundMusic.play();
                         _this.musicPlaying = true;
@@ -206,9 +231,7 @@ export var Game = /*#__PURE__*/ function() {
                         _this.ui.updateMusicButtonText(_this.musicPlaying);
                     };
                     if (this.audioListener.context.state === 'suspended') {
-                        console.log("[Game.js] AudioContext is suspended, attempting to resume...");
                         this.audioListener.context.resume().then(function() {
-                            console.log("[Game.js] AudioContext resumed.");
                             playMusic();
                         }).catch(function(e) {
                             return console.error("[Game.js] Error resuming AudioContext:", e);
@@ -220,6 +243,8 @@ export var Game = /*#__PURE__*/ function() {
                 if (this.audioListener.context.state !== 'suspended') {
                     this.ui.updateMusicButtonText(this.musicPlaying);
                 }
+                // CloudSaves: sync music
+                await CloudSaves.save('music', this.musicPlaying ? 1 : 0);
             }
         },
         {
@@ -233,8 +258,8 @@ export var Game = /*#__PURE__*/ function() {
                 this.grid.addRandomTile();
                 this.grid.addRandomTile();
                 this.animate();
-                callGameStartWhenReady(); // GamePush старт
-                callGameplayStart();     // Геймплей старт при начале партии
+                callGameStartWhenReady();
+                callGameplayStart();
             }
         },
         {
@@ -264,7 +289,7 @@ export var Game = /*#__PURE__*/ function() {
                     this.backgroundMusic.setVolume(this.originalMusicVolume);
                 }
                 this.ui.updateMusicButtonText(this.musicPlaying);
-                callGameplayStart(); // Новый игровой процесс при reset
+                callGameplayStart();
             }
         },
         {
@@ -375,14 +400,15 @@ export var Game = /*#__PURE__*/ function() {
                         if (_this.gameState !== 'won' && _this.grid.checkWinCondition(TARGET_VALUE)) {
                             _this.gameState = 'won';
                             _this.ui.showMessage('You Win! Keep playing?');
-                            callGameplayStop(); // Завершение геймплея при победе
+                            callGameplayStop();
                             console.log("[Game.js] Win condition reached!");
                         } else if (!_this.grid.canMove()) {
                             _this.gameState = 'lost';
                             _this.ui.showMessage('Game Over!');
-                            callGameplayStop(); // Завершение геймплея при проигрыше
+                            callGameplayStop();
                             console.log("[Game.js] Game Over (no moves left).");
                         }
+                        _this.saveStats(); // Cloud sync после хода
                     }, moveResult.moved ? ANIMATION_DURATION : 0);
                 } else {
                     console.log("[Game.js] Invalid move (no tiles moved). Triggering wobble animation.");
@@ -390,8 +416,9 @@ export var Game = /*#__PURE__*/ function() {
                     if (this.gameState === 'playing' && !this.grid.canMove()) {
                         this.gameState = 'lost';
                         this.ui.showMessage('Game Over!');
-                        callGameplayStop(); // Завершение геймплея при проигрыше после неудачного хода
+                        callGameplayStop();
                         console.log("[Game.js] Game Over (after invalid move, no moves left).");
+                        this.saveStats(); // Cloud sync после проигрыша
                     }
                 }
             }
@@ -522,7 +549,7 @@ export var Game = /*#__PURE__*/ function() {
                         this.gameState = 'lost';
                         this.ui.showMessage('Game Over!');
                         this.saveStats();
-                        callGameplayStop(); // Завершение геймплея при проигрыше после анимации
+                        callGameplayStop();
                         console.log("[Game.js] Game Over (after animations, no moves left).");
                     }
                 }
