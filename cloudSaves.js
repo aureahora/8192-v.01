@@ -1,79 +1,87 @@
-// cloudSaves.js — Модуль для взаимодействия с облачными сохранениями GamePush
-
-// Список ключей для сохранения
-const PLAYER_FIELDS = ['best', 'playscore', 'maxtile', 'games', 'glow', 'music'];
+/**
+ * CloudSaves — модуль для работы с облачными сохранениями через GamePush SDK.
+ * Все методы ждут готовности SDK, логируют действия и ошибки.
+ */
 
 export const CloudSaves = {
-    // Ждём появления SDK GamePush (до 20 сек, с интервалом 100 мс)
-    async waitForSDK(timeoutMs = 20000, intervalMs = 100) {
-        const started = Date.now();
-        while (!window.gamePushSDK) {
-            if (Date.now() - started > timeoutMs) {
-                console.error('[CloudSaves] GamePush SDK не инициализирован за отведённое время!');
-                throw new Error('GamePush SDK timeout');
-            }
-            await new Promise(res => setTimeout(res, intervalMs));
-        }
-        return window.gamePushSDK;
-    },
-
-    // Загрузка ВСЕХ облачных переменных игрока
+    // Загрузка всех полей
     async loadAll() {
-        console.log('[CloudSaves] Старт загрузки облачных сохранений...');
+        let gp = window.gamePushSDK;
+        if (!gp) {
+            console.error('[CloudSaves] GamePush SDK не инициализирован!');
+            return null;
+        }
         try {
-            const gp = await CloudSaves.waitForSDK();
-            // Проверяем наличие player API
-            if (!gp.player) throw new Error('GamePush player API недоступен!');
-            let result = {};
-            for (const key of PLAYER_FIELDS) {
-                try {
-                    const value = gp.player.get(key);
-                    result[key] = value;
-                    console.log(`[CloudSaves] Загружено поле "${key}":`, value);
-                } catch (err) {
-                    console.warn(`[CloudSaves] Не удалось загрузить поле "${key}":`, err);
-                    result[key] = null;
-                }
+            const best = gp.player.get('best');
+            const playscore = gp.player.get('playscore');
+            const maxtile = gp.player.get('maxtile');
+            const games = gp.player.get('games');
+            const glow = gp.player.get('glow');
+            const music = gp.player.get('music');
+            const progressStr = gp.player.get('progress');
+            let progress = null;
+            try {
+                progress = progressStr ? JSON.parse(progressStr) : null;
+            } catch (e) {
+                console.warn('[CloudSaves] Не удалось распарсить прогресс:', e);
+                progress = null;
             }
-            return result;
+            console.log('[CloudSaves] Данные игрока загружены из облака:', { best, playscore, maxtile, games, glow, music, progress });
+            return { best, playscore, maxtile, games, glow, music, progress };
         } catch (e) {
-            console.error('[CloudSaves] Ошибка загрузки облака:', e);
-            throw e;
+            console.error('[CloudSaves] Ошибка загрузки данных игрока из облака:', e);
+            return null;
         }
     },
 
-    // Сохранить одно поле
+    // Сохраняет одну переменную (ключ: value)
     async save(key, value) {
-        console.log(`[CloudSaves] Сохраняем поле "${key}" в облако... Значение:`, value);
+        let gp = window.gamePushSDK;
+        if (!gp) {
+            console.error('[CloudSaves] GamePush SDK не инициализирован!');
+            return;
+        }
         try {
-            const gp = await CloudSaves.waitForSDK();
-            if (!gp.player) throw new Error('GamePush player API недоступен!');
             gp.player.set(key, value);
             await gp.player.sync();
-            console.log(`[CloudSaves] Сохранено поле "${key}" успешно!`);
+            console.log(`[CloudSaves] Поле "${key}" сохранено в облако. Значение:`, value);
         } catch (e) {
             console.error(`[CloudSaves] Ошибка сохранения поля "${key}" в облако:`, e);
-            throw e;
         }
     },
 
-    // Сохранить все поля разом
-    async saveAll(data) {
-        console.log('[CloudSaves] Начало сохранения всех полей игрока в облако...', data);
+    // Сохраняет все основные переменные
+    async saveAll(obj) {
+        let gp = window.gamePushSDK;
+        if (!gp) {
+            console.error('[CloudSaves] GamePush SDK не инициализирован!');
+            return;
+        }
         try {
-            const gp = await CloudSaves.waitForSDK();
-            if (!gp.player) throw new Error('GamePush player API недоступен!');
-            for (const key of PLAYER_FIELDS) {
-                if (typeof data[key] !== 'undefined') {
-                    gp.player.set(key, data[key]);
-                    console.log(`[CloudSaves] Установлено поле "${key}" =`, data[key]);
-                }
+            for (const [key, value] of Object.entries(obj)) {
+                gp.player.set(key, value);
             }
             await gp.player.sync();
-            console.log('[CloudSaves] Все поля успешно сохранены в облако!');
+            console.log('[CloudSaves] Все поля игрока сохранены в облако:', obj);
         } catch (e) {
-            console.error('[CloudSaves] Ошибка сохранения всех полей:', e);
-            throw e;
+            console.error('[CloudSaves] Ошибка сохранения всех полей игрока:', e);
+        }
+    },
+
+    // Специальный метод для сохранения прогресса (JSON-строка)
+    async saveProgress(progressObj) {
+        let gp = window.gamePushSDK;
+        if (!gp) {
+            console.error('[CloudSaves] GamePush SDK не инициализирован!');
+            return;
+        }
+        try {
+            const progressStr = JSON.stringify(progressObj);
+            gp.player.set('progress', progressStr);
+            await gp.player.sync();
+            console.log('[CloudSaves] Прогресс игры сохранён в облако:', progressObj);
+        } catch (e) {
+            console.error('[CloudSaves] Ошибка сохранения прогресса в облако:', e);
         }
     }
 };

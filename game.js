@@ -28,6 +28,11 @@ import { SceneSetup } from './sceneSetup.js';
 import { Tile } from './tile.js';
 import { TILE_COLORS, GRID_SIZE, TARGET_VALUE, CELL_GAP, CELL_SIZE } from './constants.js';
 
+// --- Audio file paths ---
+const BACKGROUND_MUSIC_PATH = './background.mp3';
+const TAP_SOUND_PATH = './collisioncub.mp3';
+const MERGE_SOUND_PATH = './surgemergers.mp3';
+
 var ANIMATION_DURATION = 150;
 var WOBBLE_DURATION = 100;
 var WOBBLE_MAGNITUDE = 0.15;
@@ -113,6 +118,15 @@ export var Game = /*#__PURE__*/ function() {
         this.tapSound = null;
         this.mergeSound = null;
 
+        // --- Прогресс: восстановление из облака ---
+        this.progress = cloudLoadedStats?.progress ? this.parseProgress(cloudLoadedStats.progress) : null;
+        if (this.progress) {
+            this.restoreProgress(this.progress);
+            console.log('[Game.js] Прогресс игры восстановлен из облака.');
+        } else {
+            console.log('[Game.js] Нет сохраненного прогресса, старт новой игры.');
+        }
+
         // Событие для восстановления музыки после фокуса/скрытия вкладки
         this._wasMutedByVisibility = false; // Флаг, чтобы понимать, что пауза была из-за потери фокуса
 
@@ -135,14 +149,83 @@ export var Game = /*#__PURE__*/ function() {
     }
     _create_class(Game, [
         {
+            // --- Метод для сериализации всей игровой ситуации ---
+            key: "getProgressObject",
+            value: function getProgressObject() {
+                let gridState = [];
+                for (let r = 0; r < this.grid.size; r++) {
+                    for (let c = 0; c < this.grid.size; c++) {
+                        const tile = this.grid.cells[r][c];
+                        if (tile) {
+                            gridState.push({
+                                x: c,
+                                y: r,
+                                value: tile.value
+                            });
+                        }
+                    }
+                }
+                return {
+                    score: this.score,
+                    highScore: this.highScore,
+                    highestTileValue: this.highestTileValue,
+                    gamesPlayed: this.gamesPlayed,
+                    grid: gridState
+                };
+            }
+        },
+        {
+            // --- Восстановление прогресса из объекта ---
+            key: "restoreProgress",
+            value: function restoreProgress(progressObj) {
+                this.score = progressObj.score || 0;
+                this.highScore = progressObj.highScore || 0;
+                this.highestTileValue = progressObj.highestTileValue || 0;
+                this.gamesPlayed = progressObj.gamesPlayed || 0;
+                this.ui.updateScore(this.score);
+                this.ui.updateHighScore(this.highScore);
+                this.ui.updateHighestTile(this.highestTileValue);
+                this.ui.updateGamesPlayed(this.gamesPlayed);
+
+                // Восстанавливаем сетку
+                this.grid.clear();
+                if (progressObj.grid && Array.isArray(progressObj.grid)) {
+                    progressObj.grid.forEach(tileData => {
+                        const tile = new Tile(tileData.value, tileData.x, tileData.y, this.loadedFont);
+                        this.grid.cells[tileData.y][tileData.x] = tile;
+                        tile.mesh.position.copy(this.grid.getCellPosition(tileData.x, tileData.y));
+                        this.grid.gridGroup.add(tile.mesh);
+                    });
+                }
+            }
+        },
+        {
+            // --- Парсинг JSON прогресса ---
+            key: "parseProgress",
+            value: function parseProgress(progressStr) {
+                try {
+                    return JSON.parse(progressStr);
+                } catch (e) {
+                    console.warn('[Game.js] Не удалось распарсить строку прогресса:', e);
+                    return null;
+                }
+            }
+        },
+        {
+            // --- Сохраняет прогресс в облако ---
+            key: "saveProgress",
+            value: function saveProgress() {
+                const progressObj = this.getProgressObject();
+                CloudSaves.saveProgress(progressObj);
+            }
+        },
+        {
             key: "initSoundSDKIntegration",
             value: function initSoundSDKIntegration() {
-                // Проверяем наличие SDK
                 if (!window.gamePushSDK) {
                     console.warn("[Game.js] GamePush SDK не найден, интеграция звука невозможна.");
                     return;
                 }
-                // ВЫКЛЮЧИЛИ ВСЕ ЗВУКИ
                 window.gamePushSDK.sounds.on('mute', () => {
                     console.log('[Sound SDK] mute: Отключаем все звуки (музыка и эффекты).');
                     if (this.backgroundMusic && this.backgroundMusic.isPlaying) this.backgroundMusic.pause();
@@ -151,20 +234,17 @@ export var Game = /*#__PURE__*/ function() {
                     if (this.tapSound && this.tapSound.isPlaying) this.tapSound.pause();
                     if (this.mergeSound && this.mergeSound.isPlaying) this.mergeSound.pause();
                 });
-                // ВЫКЛЮЧИЛИ только музыку
                 window.gamePushSDK.sounds.on('mute:music', () => {
                     console.log('[Sound SDK] mute:music: Отключаем только музыку.');
                     if (this.backgroundMusic && this.backgroundMusic.isPlaying) this.backgroundMusic.pause();
                     this.musicPlaying = false;
                     this.ui.updateMusicButtonText(false);
                 });
-                // ВЫКЛЮЧИЛИ только эффекты
                 window.gamePushSDK.sounds.on('mute:sfx', () => {
                     console.log('[Sound SDK] mute:sfx: Отключаем только эффекты.');
                     if (this.tapSound && this.tapSound.isPlaying) this.tapSound.pause();
                     if (this.mergeSound && this.mergeSound.isPlaying) this.mergeSound.pause();
                 });
-                // ВКЛЮЧИЛИ ВСЕ ЗВУКИ
                 window.gamePushSDK.sounds.on('unmute', () => {
                     console.log('[Sound SDK] unmute: Включаем все звуки (музыка и эффекты).');
                     if (this.backgroundMusic && !window.gamePushSDK.sounds.isMusicMuted) {
@@ -173,7 +253,6 @@ export var Game = /*#__PURE__*/ function() {
                         this.ui.updateMusicButtonText(true);
                     }
                 });
-                // ВКЛЮЧИЛИ только музыку
                 window.gamePushSDK.sounds.on('unmute:music', () => {
                     console.log('[Sound SDK] unmute:music: Включаем только музыку.');
                     if (this.backgroundMusic && !window.gamePushSDK.sounds.isMusicMuted) {
@@ -182,12 +261,9 @@ export var Game = /*#__PURE__*/ function() {
                         this.ui.updateMusicButtonText(true);
                     }
                 });
-                // ВКЛЮЧИЛИ только эффекты
                 window.gamePushSDK.sounds.on('unmute:sfx', () => {
                     console.log('[Sound SDK] unmute:sfx: Включаем только эффекты.');
-                    // В этой реализации эффекты проигрываются по событию, ничего не делаем
                 });
-                // Логируем текущее состояние звука при старте
                 console.log('[Sound SDK] Initial states:',
                     'isMuted:', window.gamePushSDK.sounds.isMuted,
                     'isMusicMuted:', window.gamePushSDK.sounds.isMusicMuted,
@@ -198,19 +274,15 @@ export var Game = /*#__PURE__*/ function() {
         {
             key: "initVisibilityEvents",
             value: function initVisibilityEvents() {
-                // Для вкладки браузера (скрытие/фокус)
                 document.addEventListener('visibilitychange', () => {
                     if (document.hidden) {
-                        // Потеря фокуса
                         if (window.gamePushSDK && !window.gamePushSDK.sounds.isMuted) {
                             window.gamePushSDK.sounds.mute();
                             this._wasMutedByVisibility = true;
                             console.log('[Game.js] Вкладка скрыта, музыка поставлена на паузу через SDK.');
                         }
                     } else {
-                        // Возврат фокуса
                         if (window.gamePushSDK && this._wasMutedByVisibility) {
-                            // Восстанавливаем звук, если пользователь не выключал вручную
                             if (!window.gamePushSDK.sounds.isMuted) {
                                 window.gamePushSDK.sounds.unmute();
                                 console.log('[Game.js] Вкладка снова активна, восстанавливаем звук через SDK.');
@@ -221,7 +293,6 @@ export var Game = /*#__PURE__*/ function() {
                         }
                     }
                 });
-                // На всякий случай также слушаем focus/blur
                 window.addEventListener('blur', () => {
                     if (window.gamePushSDK && !window.gamePushSDK.sounds.isMuted) {
                         window.gamePushSDK.sounds.mute();
@@ -253,7 +324,6 @@ export var Game = /*#__PURE__*/ function() {
                 localStorage.setItem('highScore', self.highScore.toString());
                 localStorage.setItem('highestTileValue', self.highestTileValue.toString());
                 localStorage.setItem('gamesPlayed', self.gamesPlayed.toString());
-                // CloudSaves - обновление всех статов (без music/glow, они отдельно)
                 CloudSaves.saveAll({
                     best: self.highScore,
                     playscore: self.score,
@@ -266,6 +336,8 @@ export var Game = /*#__PURE__*/ function() {
                 }).catch(function(e) {
                     console.error("[Game.js] Ошибка CloudSaves.saveAll:", e);
                 });
+                // --- Сохраняем прогресс игры ---
+                this.saveProgress();
             }
         },
         {
@@ -290,7 +362,7 @@ export var Game = /*#__PURE__*/ function() {
                 this.tapSound = new THREE.Audio(this.audioListener);
                 this.mergeSound = new THREE.Audio(this.audioListener);
                 var audioLoader = new THREE.AudioLoader();
-                audioLoader.load('https://play.rosebud.ai/assets/Ethereal Drift.mp3?Gvns', function(buffer) {
+                audioLoader.load(BACKGROUND_MUSIC_PATH, function(buffer) {
                     _this.backgroundMusic.setBuffer(buffer);
                     _this.backgroundMusic.setLoop(false);
                     _this.backgroundMusic.setVolume(_this.originalMusicVolume);
@@ -298,7 +370,6 @@ export var Game = /*#__PURE__*/ function() {
                     console.log("[Game.js] Background music loaded. Duration: " + _this.musicDuration + "s");
                     _this.ui.updateMusicButtonText(_this.musicPlaying);
 
-                    // Проверяем состояние через SDK и актуализируем UI
                     if (window.gamePushSDK) {
                         if (!window.gamePushSDK.sounds.isMusicMuted) {
                             _this.musicPlaying = true;
@@ -310,13 +381,12 @@ export var Game = /*#__PURE__*/ function() {
                             _this.ui.updateMusicButtonText(false);
                         }
                     } else if (_this.musicPlaying) {
-                        // Если нет SDK, fallback на локальное состояние
                         _this.toggleMusic();
                     }
                 }, undefined, function(error) {
                     return console.error('[Game.js] Error loading background music:', error);
                 });
-                audioLoader.load('https://play.rosebud.ai/assets/screen-tap-38717.mp3?5AkB', function(buffer) {
+                audioLoader.load(TAP_SOUND_PATH, function(buffer) {
                     _this.tapSound.setBuffer(buffer);
                     _this.tapSound.setLoop(false);
                     _this.tapSound.setVolume(0.6);
@@ -324,7 +394,7 @@ export var Game = /*#__PURE__*/ function() {
                 }, undefined, function(error) {
                     return console.error('[Game.js] Error loading tap sound:', error);
                 });
-                audioLoader.load('https://play.rosebud.ai/assets/slime-squish-5-218569.mp3?4N1C', function(buffer) {
+                audioLoader.load(MERGE_SOUND_PATH, function(buffer) {
                     _this.mergeSound.setBuffer(buffer);
                     _this.mergeSound.setLoop(false);
                     _this.mergeSound.setVolume(0.7);
@@ -338,10 +408,8 @@ export var Game = /*#__PURE__*/ function() {
         {
             key: "toggleMusic",
             value: function toggleMusic() {
-                // Теперь управление музыкой только через SDK
                 if (!window.gamePushSDK) {
                     console.warn("[Game.js] toggleMusic: Нет доступа к GamePush SDK, fallback на локальное управление.");
-                    // Фоллбек на старое поведение для тестов без SDK
                     if (!this.backgroundMusic || !this.backgroundMusic.buffer) {
                         console.warn("[Game.js] Attempted to toggle music, but buffer is not loaded.");
                         return;
@@ -375,7 +443,6 @@ export var Game = /*#__PURE__*/ function() {
                     });
                     return;
                 }
-                // SDK управление
                 if (window.gamePushSDK.sounds.isMusicMuted) {
                     window.gamePushSDK.sounds.unmuteMusic();
                     console.log("[Game.js] toggleMusic: Включить музыку через SDK.");
@@ -383,7 +450,6 @@ export var Game = /*#__PURE__*/ function() {
                     window.gamePushSDK.sounds.muteMusic();
                     console.log("[Game.js] toggleMusic: Отключить музыку через SDK.");
                 }
-                // Состояние и UI обновятся в обработчиках SDK событий
             }
         },
         {
@@ -547,7 +613,7 @@ export var Game = /*#__PURE__*/ function() {
                             callGameplayStop();
                             console.log("[Game.js] Game Over (no moves left).");
                         }
-                        _this.saveStats(); // Cloud sync после хода
+                        _this.saveStats(); // Cloud sync + прогресс после хода
                     }, moveResult.moved ? ANIMATION_DURATION : 0);
                 } else {
                     console.log("[Game.js] Invalid move (no tiles moved). Triggering wobble animation.");
@@ -557,7 +623,7 @@ export var Game = /*#__PURE__*/ function() {
                         this.ui.showMessage('Game Over!');
                         callGameplayStop();
                         console.log("[Game.js] Game Over (after invalid move, no moves left).");
-                        this.saveStats(); // Cloud sync после проигрыша
+                        this.saveStats();
                     }
                 }
             }
