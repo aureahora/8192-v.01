@@ -167,7 +167,15 @@ export var UI = /*#__PURE__*/ function() {
                 var screenWidth = window.innerWidth;
                 var screenHeight = window.innerHeight;
                 var isPortrait = screenHeight > screenWidth;
+                
+                // Улучшенная логика определения типа устройства
+                var isVerySmallScreen = screenWidth <= 480 && screenHeight <= 854; // Маленькие смартфоны
+                var isSmallTablet = screenWidth <= 768 && screenWidth > 480;
                 var isLikelyMobile = screenWidth <= 768 || screenHeight <= 500;
+                var aspectRatio = screenWidth / screenHeight;
+                
+                console.log(`[UI] Adjusting layout: ${screenWidth}x${screenHeight}, ratio: ${aspectRatio.toFixed(2)}`);
+                
                 // Reset common styles that might change
                 this.uiContainer.style.width = 'auto';
                 this.uiContainer.style.alignItems = 'center';
@@ -178,8 +186,35 @@ export var UI = /*#__PURE__*/ function() {
                 this.buttonsContainer.style.flexWrap = 'nowrap';
                 this.scoreElement.style.textAlign = 'left';
                 this.messageElement.style.width = 'auto'; // Reset message width
-                // Apply mode-specific styles directly
-                if (isLikelyMobile) {
+                
+                // Apply device-specific adaptive styles
+                if (isVerySmallScreen) {
+                    // Очень маленькие экраны - максимальная компактность
+                    console.log("UI Mode: Very Small Screen");
+                    this.uiContainer.style.top = '5px';
+                    this.uiContainer.style.width = 'calc(100% - 10px)';
+                    this.uiContainer.style.padding = '5px';
+                    this.uiContainer.style.gap = '5px';
+                    this.uiContainer.style.flexDirection = isPortrait ? 'column' : 'row';
+                    this.scoreElement.style.fontSize = '14px';
+                    this.scoreElement.style.textAlign = 'center';
+                    this.statsContainer.style.flexDirection = 'row';
+                    this.statsContainer.style.justifyContent = 'space-around';
+                    this.statsContainer.style.gap = '4px';
+                    this.buttonsContainer.style.flexDirection = 'row';
+                    this.buttonsContainer.style.gap = '4px';
+                    this.messageElement.style.fontSize = '16px';
+                    
+                    // Очень компактные кнопки
+                    var verySmallBtnStyle = {
+                        fontSize: '10px',
+                        padding: '4px 6px'
+                    };
+                    Object.assign(this.resetButton.style, verySmallBtnStyle);
+                    Object.assign(this.toggleGlowButton.style, verySmallBtnStyle);
+                    Object.assign(this.toggleMusicButton.style, verySmallBtnStyle);
+                    
+                } else if (isLikelyMobile) {
                     if (isPortrait) {
                         // Mobile Portrait
                         console.log("UI Mode: Mobile Portrait");
@@ -243,39 +278,60 @@ export var UI = /*#__PURE__*/ function() {
                         }
                     }
                 } else {
-                    // Desktop
-                    console.log("UI Mode: Desktop");
-                    this.uiContainer.style.top = '20px';
-                    this.uiContainer.style.padding = '10px 20px';
-                    this.uiContainer.style.gap = '20px';
+                    // Desktop и большие экраны
+                    var isLargeDesktop = screenWidth >= 1920;
+                    var isUltraWide = aspectRatio > 2.0;
+                    
+                    console.log(`UI Mode: Desktop (Large: ${isLargeDesktop}, UltraWide: ${isUltraWide})`);
+                    
+                    this.uiContainer.style.top = isLargeDesktop ? '30px' : '20px';
+                    this.uiContainer.style.padding = isLargeDesktop ? '15px 30px' : '10px 20px';
+                    this.uiContainer.style.gap = isLargeDesktop ? '30px' : '20px';
                     this.uiContainer.style.flexDirection = 'row';
-                    // alignItems: 'center' (already reset)
-                    this.scoreElement.style.fontSize = '16px';
+                    
+                    // Адаптивные размеры для больших экранов
+                    var scoreFontSize = isLargeDesktop ? '20px' : '16px';
+                    var messageFontSize = isLargeDesktop ? '32px' : '24px';
+                    var btnFontSize = isLargeDesktop ? '16px' : '14px';
+                    var btnPadding = isLargeDesktop ? '10px 16px' : '8px 12px';
+                    
+                    this.scoreElement.style.fontSize = scoreFontSize;
                     this.statsContainer.style.flexDirection = 'column';
                     this.statsContainer.style.alignItems = 'flex-start';
-                    this.statsContainer.style.gap = '2px';
-                    // marginTop: '0px' (already reset)
+                    this.statsContainer.style.gap = isLargeDesktop ? '4px' : '2px';
                     this.buttonsContainer.style.flexDirection = 'row';
-                    this.buttonsContainer.style.gap = '8px';
-                    // marginTop: '0px' (already reset)
-                    this.messageElement.style.fontSize = '24px';
-                    // Restore default button styles for desktop
-                    var btnStyle1 = {
-                        fontSize: '14px',
-                        padding: '8px 12px'
+                    this.buttonsContainer.style.gap = isLargeDesktop ? '12px' : '8px';
+                    this.messageElement.style.fontSize = messageFontSize;
+                    
+                    // Адаптивные стили кнопок для desktop
+                    var desktopBtnStyle = {
+                        fontSize: btnFontSize,
+                        padding: btnPadding
                     };
-                    Object.assign(this.resetButton.style, btnStyle1);
-                    Object.assign(this.toggleGlowButton.style, btnStyle1);
-                    Object.assign(this.toggleMusicButton.style, btnStyle1);
+                    Object.assign(this.resetButton.style, desktopBtnStyle);
+                    Object.assign(this.toggleGlowButton.style, desktopBtnStyle);
+                    Object.assign(this.toggleMusicButton.style, desktopBtnStyle);
+                    
                     if (this.creditBox) {
-                        this.creditBox.style.bottom = '10px';
-                        this.creditBox.style.left = '10px';
-                        this.creditBox.style.fontSize = '10px';
-                        this.creditBox.style.padding = '5px 10px';
+                        this.creditBox.style.bottom = isLargeDesktop ? '15px' : '10px';
+                        this.creditBox.style.left = isLargeDesktop ? '15px' : '10px';
+                        this.creditBox.style.fontSize = isLargeDesktop ? '12px' : '10px';
+                        this.creditBox.style.padding = isLargeDesktop ? '8px 15px' : '5px 10px';
                     }
                 }
-                // Apply common font sizes for stats (adjust if needed per mode above)
-                var statsFontSize = isLikelyMobile ? '13px' : '14px';
+                
+                // Адаптивные размеры шрифта для статистики на основе размера экрана
+                var statsFontSize;
+                if (isVerySmallScreen) {
+                    statsFontSize = '11px';
+                } else if (isLikelyMobile) {
+                    statsFontSize = '13px';
+                } else if (screenWidth >= 1920) {
+                    statsFontSize = '16px';
+                } else {
+                    statsFontSize = '14px';
+                }
+                
                 this.highScoreElement.style.fontSize = statsFontSize;
                 this.highestTileElement.style.fontSize = statsFontSize;
                 this.gamesPlayedElement.style.fontSize = statsFontSize;

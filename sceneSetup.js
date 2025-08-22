@@ -225,8 +225,11 @@ export var SceneSetup = /*#__PURE__*/ function() {
         },
         {
             key: "resetCamera",
-            value: function resetCamera() {
-                var distance = 20; // Adjust distance based on grid size
+            value: function resetCamera(cellSize) {
+                // Адаптируем расстояние камеры на основе размера сетки
+                // Чем больше cellSize, тем дальше должна быть камера для охвата всей сетки
+                var gridScale = cellSize || 2; // Используем переданный cellSize или значение по умолчанию
+                var distance = 15 + gridScale * 3; // Масштабируем расстояние
                 this.camera.position.set(0, -distance * 0.5, distance); // Position back and slightly up
                 this.camera.lookAt(0, 0, 0); // Look at the center of the grid
                 this.camera.updateProjectionMatrix();

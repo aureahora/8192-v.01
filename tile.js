@@ -25,18 +25,19 @@ function _instanceof(left, right) {
     }
 }
 import * as THREE from 'three';
-import { TILE_COLORS, CELL_SIZE } from './constants.js'; // Removed FONT_JSON_URL
+import { TILE_COLORS } from './constants.js'; // Removed CELL_SIZE import since now dynamic
 // Removed FontLoader import as it's loaded externally
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
 // Removed global fontLoader and loadedFont variables
 export var Tile = /*#__PURE__*/ function() {
     "use strict";
-    function Tile(value, x, y, loadedFont) {
+    function Tile(value, x, y, loadedFont, cellSize) {
         _class_call_check(this, Tile);
         this.value = value;
         this.x = x; // Grid column
         this.y = y; // Grid row
         this.font = loadedFont; // Store the passed font
+        this.cellSize = cellSize || 2; // Store the dynamic cell size with fallback
         if (!this.font) {
             console.error("Tile created without a valid font!");
         // Handle error - perhaps create tile without text?
@@ -44,8 +45,8 @@ export var Tile = /*#__PURE__*/ function() {
         // Calculate index based on power of 2: log2(value) - 1
         var colorIndex = Math.max(0, Math.log2(this.value) - 1);
         var color = TILE_COLORS[colorIndex % TILE_COLORS.length];
-        // Main tile block
-        var geometry = new THREE.BoxGeometry(CELL_SIZE * 0.9, CELL_SIZE * 0.9, CELL_SIZE * 0.8);
+        // Main tile block using dynamic cellSize
+        var geometry = new THREE.BoxGeometry(this.cellSize * 0.9, this.cellSize * 0.9, this.cellSize * 0.8);
         // Use MeshToonMaterial for cel-shading effect
         var material = new THREE.MeshToonMaterial({
             color: color
@@ -70,8 +71,8 @@ export var Tile = /*#__PURE__*/ function() {
                 // this.textMesh.material.dispose();
                 }
                 var text = this.value.toString();
-                // Simplified and increased text size calculation
-                var baseSize = CELL_SIZE * 0.5;
+                // Simplified and increased text size calculation using dynamic cellSize
+                var baseSize = this.cellSize * 0.5;
                 // Slightly reduce size for more digits, but keep it large
                 if (text.length > 1) baseSize *= 0.85;
                 if (text.length > 2) baseSize *= 0.85;
@@ -80,7 +81,7 @@ export var Tile = /*#__PURE__*/ function() {
                 var textGeo = new TextGeometry(text, {
                     font: this.font,
                     size: textSize,
-                    height: CELL_SIZE * 0.1,
+                    height: this.cellSize * 0.1,
                     curveSegments: 4
                 });
                 // Center the text geometry
