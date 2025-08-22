@@ -212,64 +212,18 @@ export var Game = /*#__PURE__*/ function() {
                 // --- Standard Start State ---
                 this.grid.clear(); // Ensure grid is empty
                 // --- Removed Advanced Start Logic ---
-                // const values = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192];
-                // let valueIndex = 0;
-                // if (!this.loadedFont) {
-                //     console.error("Cannot populate board: Font not loaded yet.");
-                //     // Fallback to original start? Or just show empty grid?
-                //     // Let's fallback to original for now
-                //     this.grid.addRandomTile();
-                //     this.grid.addRandomTile();
-                //     this.animate();
-                //     return;
-                // }
-                // for (let r = 0; r < this.grid.size; r++) {
-                //     for (let c = 0; c < this.grid.size; c++) {
-                //         if (valueIndex < values.length) {
-                //             const value = values[valueIndex++];
-                //             console.log(`Attempting to create tile: Value=${value}, Pos=(${r}, ${c})`); // Log attempt
-                //             try {
-                //                 // Create the tile instance directly, passing the font
-                //                 const tile = new Tile(value, c, r, this.loadedFont); // This should now work
-                //                 if (!tile) {
-                //                      console.error(`Tile constructor returned null/undefined for value ${value}`);
-                //                      continue; // Skip this iteration if tile creation failed fundamentally
-                //                 }
-                //                  if (!tile.mesh) {
-                //                      console.error(`Tile object created for value ${value}, but tile.mesh is missing!`);
-                //                      continue; // Skip if mesh wasn't created
-                //                  }
-                //                 console.log(` > Tile ${value} created. Mesh found.`);
-                //                 // Manually set its position using grid helper
-                //                 const position = this.grid.getCellPosition(c, r);
-                //                  if (!position || isNaN(position.x) || isNaN(position.y) || isNaN(position.z)) {
-                //                      console.error(` > Invalid position calculated for (${r}, ${c}):`, position);
-                //                      continue; // Skip if position is bad
-                //                  }
-                //                 console.log(` > Calculated position:`, position);
-                //                 tile.mesh.position.copy(position);
-                //                 // Add the tile to the logical grid array
-                //                 this.grid.cells[r][c] = tile;
-                //                 console.log(` > Added tile ${value} to logical grid cells[${r}][${c}]`);
-                //                 // Add the tile's mesh to the scene via the grid's group
-                //                 this.grid.gridGroup.add(tile.mesh);
-                //                  console.log(` > Added tile ${value} mesh to gridGroup.`);
-                //             } catch (error) {
-                //                 console.error(` > Error during creation/adding tile value ${value} at (${r}, ${c}):`, error);
-                //                 // Skipping this tile on error
-                //             }
-                //         } else {
-                //             // Stop adding tiles once all values are used
-                //             break;
-                //         }
-                //     }
-                //      if (valueIndex >= values.length) break; // Exit outer loop too
-                // }
-                // --- End Removed Advanced Start Logic ---
                 // Original start logic (now re-enabled)
                 this.grid.addRandomTile();
                 this.grid.addRandomTile();
                 this.animate(); // Start the animation loop
+
+                // --- GamePush интеграция: вызов GameStart/GameReady ---
+                if (window.gamePushSDK && typeof window.gamePushSDK.GameStart === "function") {
+                    window.gamePushSDK.GameStart();
+                } else if (window.gamePushSDK && typeof window.gamePushSDK.GameReady === "function") {
+                    window.gamePushSDK.GameReady();
+                }
+                // Если SDK не найден — ничего не вызываем
             }
         },
         {
