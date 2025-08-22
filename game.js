@@ -1,5 +1,4 @@
 // --- CloudSaves Integration ---
-// Добавить этот импорт в начало файла:
 import { CloudSaves } from './cloudSaves.js';
 
 function _class_call_check(instance, Constructor) {
@@ -83,7 +82,7 @@ function getDefaultMusic() { return 0; } // off
 
 export var Game = /*#__PURE__*/ function() {
     "use strict";
-    function Game(container, ui, loadedFont, cloudLoadedStats) { // cloudLoadedStats - новые облачные значения
+    function Game(container, ui, loadedFont, cloudLoadedStats) {
         _class_call_check(this, Game);
         this.container = container;
         this.ui = ui;
@@ -97,13 +96,14 @@ export var Game = /*#__PURE__*/ function() {
         this.gameState = 'playing';
         this.clock = new THREE.Clock();
         this.lastMoveDirection = new THREE.Vector2(0, 0);
+
         // --- CloudSaves: инициализация из облака, падение на локальное если облако пусто ---
         this.highScore = cloudLoadedStats?.best ?? parseInt(localStorage.getItem('highScore') || '0', 10);
         this.score = cloudLoadedStats?.playscore ?? 0;
         this.highestTileValue = cloudLoadedStats?.maxtile ?? parseInt(localStorage.getItem('highestTileValue') || '0', 10);
         this.gamesPlayed = cloudLoadedStats?.games ?? parseInt(localStorage.getItem('gamesPlayed') || '0', 10);
-        this.isGlowBright = (cloudLoadedStats?.glow ?? getDefaultGlow()) === 0; // 0: bright, 1: dark
-        this.musicPlaying = (cloudLoadedStats?.music ?? getDefaultMusic()) === 1; // 0: off, 1: on
+        this.isGlowBright = (cloudLoadedStats?.glow ?? getDefaultGlow()) === 0;
+        this.musicPlaying = (cloudLoadedStats?.music ?? getDefaultMusic()) === 1;
         this.audioListener = null;
         this.backgroundMusic = null;
         this.musicDuration = 0;
@@ -114,10 +114,10 @@ export var Game = /*#__PURE__*/ function() {
         this.mergeSound = null;
         this.setupAudio();
         this.setupControls();
-        this.updateScore(this.score); // теперь из облака
+        this.updateScore(this.score);
         this.ui.updateHighestTile(this.highestTileValue);
         this.ui.updateGamesPlayed(this.gamesPlayed);
-        this.sceneSetup.setGlowMode(this.isGlowBright); // Glow при старте
+        this.sceneSetup.setGlowMode(this.isGlowBright);
         this.ui.updateGlowButtonText(this.isGlowBright);
         this.ui.updateMusicButtonText(this.musicPlaying);
         console.log("[Game.js] Game instance created.");
@@ -127,29 +127,28 @@ export var Game = /*#__PURE__*/ function() {
             key: "loadStats",
             value: function loadStats() {
                 // --- убираем, теперь работаем через облако ---
-                // this.highScore = parseInt(localStorage.getItem('highScore') || '0', 10);
-                // this.highestTileValue = parseInt(localStorage.getItem('highestTileValue') || '0', 10);
-                // this.gamesPlayed = parseInt(localStorage.getItem('gamesPlayed') || '0', 10);
-                // console.log("[Game.js] Loaded stats: highScore = " + this.highScore + ", highestTileValue = " + this.highestTileValue + ", gamesPlayed = " + this.gamesPlayed);
             }
         },
         {
             key: "saveStats",
             value: function saveStats() {
-                // --- синхронизация в облако и локалStorage ---
-                localStorage.setItem('highScore', this.highScore.toString());
-                localStorage.setItem('highestTileValue', this.highestTileValue.toString());
-                localStorage.setItem('gamesPlayed', this.gamesPlayed.toString());
+                var self = this;
+                localStorage.setItem('highScore', self.highScore.toString());
+                localStorage.setItem('highestTileValue', self.highestTileValue.toString());
+                localStorage.setItem('gamesPlayed', self.gamesPlayed.toString());
                 // CloudSaves - обновление всех статов (без music/glow, они отдельно)
                 CloudSaves.saveAll({
-                    best: this.highScore,
-                    playscore: this.score,
-                    maxtile: this.highestTileValue,
-                    games: this.gamesPlayed,
-                    glow: this.isGlowBright ? 0 : 1,
-                    music: this.musicPlaying ? 1 : 0,
+                    best: self.highScore,
+                    playscore: self.score,
+                    maxtile: self.highestTileValue,
+                    games: self.gamesPlayed,
+                    glow: self.isGlowBright ? 0 : 1,
+                    music: self.musicPlaying ? 1 : 0,
+                }).then(function() {
+                    console.log("[Game.js] Saved stats: highScore = " + self.highScore + ", highestTileValue = " + self.highestTileValue + ", gamesPlayed = " + self.gamesPlayed + " [Cloud sync]");
+                }).catch(function(e) {
+                    console.error("[Game.js] Ошибка CloudSaves.saveAll:", e);
                 });
-                console.log("[Game.js] Saved stats: highScore = " + this.highScore + ", highestTileValue = " + this.highestTileValue + ", gamesPlayed = " + this.gamesPlayed + " [Cloud sync]");
             }
         },
         {
@@ -209,7 +208,7 @@ export var Game = /*#__PURE__*/ function() {
         },
         {
             key: "toggleMusic",
-            value: async function toggleMusic() {
+            value: function toggleMusic() {
                 var _this = this;
                 console.log("[Game.js] toggleMusic called. Music playing:", this.musicPlaying);
                 if (!this.backgroundMusic || !this.backgroundMusic.buffer) {
@@ -244,7 +243,11 @@ export var Game = /*#__PURE__*/ function() {
                     this.ui.updateMusicButtonText(this.musicPlaying);
                 }
                 // CloudSaves: sync music
-                await CloudSaves.save('music', this.musicPlaying ? 1 : 0);
+                CloudSaves.save('music', this.musicPlaying ? 1 : 0).then(function() {
+                    // Saved successfully
+                }).catch(function(e) {
+                    console.error("[Game.js] Ошибка CloudSaves.save (music):", e);
+                });
             }
         },
         {
