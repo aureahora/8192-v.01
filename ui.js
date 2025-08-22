@@ -127,7 +127,6 @@ export var UI = /*#__PURE__*/ function() {
         this.creditBox.style.color = '#ccc';
         this.creditBox.style.zIndex = '90'; // Below main UI
         var creditLink = document.createElement('a');
-        creditLink.href = 'https://x.com/0dotdmtr';
         creditLink.target = '_blank'; // Open in new tab/window
         creditLink.rel = 'noopener noreferrer'; // Security best practice for target="_blank"
         creditLink.style.color = '#fff'; // White link text
