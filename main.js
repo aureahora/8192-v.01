@@ -216,6 +216,17 @@ if (renderDiv) {
                 await game.start();
                 console.log('[main.js] Game started.');
                 
+                // Добавляем обработчик изменения размера окна для динамического масштабирования
+                let resizeTimeout;
+                window.addEventListener('resize', function() {
+                    // Используем debounce для избежания чрезмерного количества вызовов
+                    clearTimeout(resizeTimeout);
+                    resizeTimeout = setTimeout(() => {
+                        console.log('[main.js] Обработка изменения размера окна');
+                        game.handleResize();
+                    }, 300); // Задержка 300мс для stabilization
+                });
+                
                 // При первом запуске сохраняем начальное состояние игры
                 if (!cloudStats?.progress) {
                     console.log('[main.js] Сохраняем начальное состояние игры в облако');

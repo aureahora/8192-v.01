@@ -19,29 +19,31 @@ function _create_class(Constructor, protoProps, staticProps) {
 }
 import * as THREE from 'three';
 import { Tile } from './tile.js';
-import { GRID_SIZE, CELL_SIZE, CELL_GAP, BASE_COLOR } from './constants.js';
+import { GRID_SIZE, CELL_GAP, BASE_COLOR } from './constants.js';
 export var Grid = /*#__PURE__*/ function() {
     "use strict";
-    function Grid(size, scene, loadedFont) {
+    function Grid(size, scene, loadedFont, cellSize) {
         _class_call_check(this, Grid);
         this.size = size;
         this.scene = scene;
         this.loadedFont = loadedFont; // Store the font
+        this.cellSize = cellSize; // Store the dynamic cell size
         this.cells = Array(size).fill(null).map(function() {
             return Array(size).fill(null);
         });
         this.gridGroup = new THREE.Group(); // Group for grid base and tiles
         this.createGridBase();
         this.scene.add(this.gridGroup);
-        // Center the grid visually
-        var offset = (this.size * CELL_SIZE + (this.size - 1) * CELL_GAP) / 2 - CELL_SIZE / 2;
+        // Center the grid visually using dynamic cellSize
+        var offset = (this.size * this.cellSize + (this.size - 1) * CELL_GAP) / 2 - this.cellSize / 2;
         this.gridGroup.position.set(-offset, -offset, 0);
     }
     _create_class(Grid, [
         {
             key: "createGridBase",
             value: function createGridBase() {
-                var baseGeometry = new THREE.BoxGeometry(this.size * CELL_SIZE + (this.size + 1) * CELL_GAP, this.size * CELL_SIZE + (this.size + 1) * CELL_GAP, CELL_SIZE / 4 // Thickness
+                // Используем динамический cellSize вместо константы
+                var baseGeometry = new THREE.BoxGeometry(this.size * this.cellSize + (this.size + 1) * CELL_GAP, this.size * this.cellSize + (this.size + 1) * CELL_GAP, this.cellSize / 4 // Thickness
                 );
                 var baseMaterial = new THREE.MeshStandardMaterial({
                     color: BASE_COLOR,
@@ -49,11 +51,11 @@ export var Grid = /*#__PURE__*/ function() {
                     roughness: 0.6
                 });
                 var gridBase = new THREE.Mesh(baseGeometry, baseMaterial);
-                gridBase.position.set((this.size * CELL_SIZE + (this.size - 1) * CELL_GAP) / 2 - CELL_SIZE / 2, (this.size * CELL_SIZE + (this.size - 1) * CELL_GAP) / 2 - CELL_SIZE / 2, -CELL_SIZE / 8 // Position slightly behind cells
+                gridBase.position.set((this.size * this.cellSize + (this.size - 1) * CELL_GAP) / 2 - this.cellSize / 2, (this.size * this.cellSize + (this.size - 1) * CELL_GAP) / 2 - this.cellSize / 2, -this.cellSize / 8 // Position slightly behind cells
                 );
                 this.gridGroup.add(gridBase);
-                // Create cell placeholders (visual only)
-                var cellGeo = new THREE.PlaneGeometry(CELL_SIZE, CELL_SIZE);
+                // Create cell placeholders (visual only) с динамическим размером
+                var cellGeo = new THREE.PlaneGeometry(this.cellSize, this.cellSize);
                 var cellMat = new THREE.MeshStandardMaterial({
                     color: 0xcccccc,
                     opacity: 0.3,
@@ -72,8 +74,8 @@ export var Grid = /*#__PURE__*/ function() {
         {
             key: "getCellPosition",
             value: function getCellPosition(x, y) {
-                // Calculate position relative to the gridGroup origin
-                return new THREE.Vector3(x * (CELL_SIZE + CELL_GAP), y * (CELL_SIZE + CELL_GAP), CELL_SIZE / 2 // Raise tiles slightly off the grid base visual
+                // Calculate position relative to the gridGroup origin using dynamic cellSize
+                return new THREE.Vector3(x * (this.cellSize + CELL_GAP), y * (this.cellSize + CELL_GAP), this.cellSize / 2 // Raise tiles slightly off the grid base visual
                 );
             }
         },
@@ -95,8 +97,8 @@ export var Grid = /*#__PURE__*/ function() {
                 var _emptyCells_Math_floor = emptyCells[Math.floor(Math.random() * emptyCells.length)], r1 = _emptyCells_Math_floor.r, c1 = _emptyCells_Math_floor.c;
                 // Generate 2 (90% chance) or 4 (10% chance)
                 var value = Math.random() < 0.9 ? 2 : 4;
-                // Pass the loaded font to the Tile constructor
-                var tile = new Tile(value, c1, r1, this.loadedFont); // Note: Tile uses (x, y) which corresponds to (c, r)
+                // Pass the loaded font and cellSize to the Tile constructor
+                var tile = new Tile(value, c1, r1, this.loadedFont, this.cellSize); // Note: Tile uses (x, y) which corresponds to (c, r)
                 this.cells[r1][c1] = tile;
                 tile.mesh.position.copy(this.getCellPosition(c1, r1));
                 this.gridGroup.add(tile.mesh);
@@ -202,8 +204,8 @@ export var Grid = /*#__PURE__*/ function() {
                                         mergedTile = targetTile; // Keep target tile reference for animation
                                         this.cells[r][c] = null; // Remove moving tile
                                         this.cells[targetR][targetC] = null; // Remove target tile temporarily
-                                        // Create the new merged tile, passing the font
-                                        var newTile = new Tile(newValue, targetC, targetR, this.loadedFont);
+                                        // Create the new merged tile, passing the font and cellSize
+                                        var newTile = new Tile(newValue, targetC, targetR, this.loadedFont, this.cellSize);
                                         this.cells[targetR][targetC] = newTile; // Place new tile in grid logic
                                         this.gridGroup.add(newTile.mesh); // Add new tile mesh to scene (initially invisible/scaled down)
                                         mergedInTurn[targetR][targetC] = true; // Mark as merged this turn

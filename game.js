@@ -26,7 +26,7 @@ import { Grid } from './grid.js';
 import { InputHandler } from './input.js';
 import { SceneSetup } from './sceneSetup.js';
 import { Tile } from './tile.js';
-import { TILE_COLORS, GRID_SIZE, TARGET_VALUE, CELL_GAP, CELL_SIZE } from './constants.js';
+import { TILE_COLORS, GRID_SIZE, TARGET_VALUE, CELL_GAP, getCellSize } from './constants.js';
 
 // --- Audio file paths ---
 const BACKGROUND_MUSIC_PATH = './background.mp3';
@@ -92,8 +92,13 @@ export var Game = /*#__PURE__*/ function() {
         this.container = container;
         this.ui = ui;
         this.loadedFont = loadedFont;
+        
+        // Вычисляем динамический размер клетки на основе размеров контейнера
+        this.cellSize = getCellSize(container);
+        console.log(`[Game.js] Инициализация с динамическим cellSize: ${this.cellSize}`);
+        
         this.sceneSetup = new SceneSetup(container);
-        this.grid = new Grid(GRID_SIZE, this.sceneSetup.scene, this.loadedFont);
+        this.grid = new Grid(GRID_SIZE, this.sceneSetup.scene, this.loadedFont, this.cellSize);
         this.inputHandler = new InputHandler(container);
         this.score = 0;
         this.isMoving = false;
@@ -101,6 +106,9 @@ export var Game = /*#__PURE__*/ function() {
         this.gameState = 'playing';
         this.clock = new THREE.Clock();
         this.lastMoveDirection = new THREE.Vector2(0, 0);
+        
+        // Устанавливаем позицию камеры с учетом динамического размера
+        this.sceneSetup.resetCamera(this.cellSize);
 
         // --- CloudSaves: инициализация из облака, падение на локальное если облако пусто ---
         this.highScore = cloudLoadedStats?.best ?? parseInt(localStorage.getItem('highScore') || '0', 10);
@@ -224,7 +232,7 @@ export var Game = /*#__PURE__*/ function() {
                         tileData.y >= 0 && tileData.y < this.grid.size && 
                         tileData.value > 0) {
                         
-                        const tile = new Tile(tileData.value, tileData.x, tileData.y, this.loadedFont);
+                        const tile = new Tile(tileData.value, tileData.x, tileData.y, this.loadedFont, this.cellSize);
                         this.grid.cells[tileData.y][tileData.x] = tile;
                         tile.mesh.position.copy(this.grid.getCellPosition(tileData.x, tileData.y));
                         this.grid.gridGroup.add(tile.mesh);
@@ -953,6 +961,58 @@ export var Game = /*#__PURE__*/ function() {
                 this.sceneSetup.updateShaderTransition();
                 this.sceneSetup.updateParticles(this.lastMoveDirection);
                 this.sceneSetup.composer.render();
+            }
+        },
+        {
+            // Метод для обработки изменения размера окна - пересчитывает размеры и пересоздает сетку
+            key: "handleResize",
+            value: function handleResize() {
+                console.log("[Game.js] Обработка изменения размера окна");
+                
+                // Пересчитываем размер клетки для новых размеров контейнера
+                const newCellSize = getCellSize(this.container);
+                console.log(`[Game.js] Новый cellSize: ${newCellSize} (был: ${this.cellSize})`);
+                
+                // Если размер значительно изменился, обновляем сетку
+                if (Math.abs(newCellSize - this.cellSize) > 0.1) {
+                    this.cellSize = newCellSize;
+                    
+                    // Сохраняем текущее состояние сетки
+                    const currentGridState = [];
+                    for (let r = 0; r < this.grid.size; r++) {
+                        for (let c = 0; c < this.grid.size; c++) {
+                            if (this.grid.cells[r][c]) {
+                                currentGridState.push({
+                                    value: this.grid.cells[r][c].value,
+                                    x: this.grid.cells[r][c].x,
+                                    y: this.grid.cells[r][c].y
+                                });
+                            }
+                        }
+                    }
+                    
+                    // Удаляем старую сетку
+                    this.sceneSetup.scene.remove(this.grid.gridGroup);
+                    
+                    // Создаем новую сетку с обновленным размером
+                    this.grid = new Grid(GRID_SIZE, this.sceneSetup.scene, this.loadedFont, this.cellSize);
+                    
+                    // Восстанавливаем кубики на новой сетке
+                    currentGridState.forEach(tileData => {
+                        const tile = new Tile(tileData.value, tileData.x, tileData.y, this.loadedFont, this.cellSize);
+                        this.grid.cells[tileData.y][tileData.x] = tile;
+                        tile.mesh.position.copy(this.grid.getCellPosition(tileData.x, tileData.y));
+                        this.grid.gridGroup.add(tile.mesh);
+                    });
+                    
+                    // Обновляем позицию камеры с учетом нового размера
+                    this.sceneSetup.resetCamera(this.cellSize);
+                    
+                    console.log(`[Game.js] Сетка пересоздана с cellSize: ${this.cellSize}`);
+                }
+                
+                // Обновляем UI (если нужно дополнительные изменения)
+                this.ui.adjustLayout();
             }
         }
     ]);
