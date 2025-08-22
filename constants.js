@@ -26,4 +26,4 @@ export var TARGET_VALUE = 8192; // Win condition
 // Using a readily available font via CDN for simplicity in buildless env
 // Source: https://github.com/mrdoob/three.js/tree/dev/examples/fonts
 // Make sure this URL is accessible
-export var FONT_JSON_URL = 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/fonts/helvetiker_regular.typeface.json';
+export var FONT_JSON_URL = 'helvetiker_regular.typeface.json';
