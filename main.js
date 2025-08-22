@@ -21,7 +21,12 @@ if (renderDiv) {
                 game.isGlowBright = !game.isGlowBright;
                 game.sceneSetup.setGlowMode(game.isGlowBright);
                 ui.updateGlowButtonText(game.isGlowBright);
-                await CloudSaves.save('glow', game.isGlowBright ? 0 : 1); // Cloud sync
+                try {
+                    await CloudSaves.save('glow', game.isGlowBright ? 0 : 1); // Cloud sync
+                    console.log('[main.js] Glow value saved to cloud:', game.isGlowBright ? 0 : 1);
+                } catch (e) {
+                    console.error('[main.js] Error saving glow to cloud:', e);
+                }
             });
             // Music toggle listener
             ui.setMusicToggleCallback(function() {
@@ -38,7 +43,7 @@ if (renderDiv) {
         var ui = new UI(document.body);
         var fontLoader = new FontLoader();
         fontLoader.load(FONT_JSON_URL, async function(loadedFont) {
-            console.log("Font loaded successfully in main.js");
+            console.log("[main.js] Font loaded successfully.");
             // --- CloudSaves: ждем SDK и облако ---
             let cloudStats = null;
             try {
@@ -50,6 +55,8 @@ if (renderDiv) {
                 if (window.gamePushSDK) {
                     cloudStats = await CloudSaves.loadAll();
                     console.log('[main.js] Cloud stats loaded:', cloudStats);
+                } else {
+                    console.warn('[main.js] GamePush SDK not initialized after waiting.');
                 }
             } catch (e) {
                 console.warn('[main.js] Не удалось загрузить облачные сохранения:', e);
@@ -57,12 +64,19 @@ if (renderDiv) {
             // Game instance, cloud stats передаем
             var game = new Game(renderDiv, ui, loadedFont, cloudStats);
             setupGameListeners(ui, game);
-            await game.start();
+            // Log before starting game
+            console.log('[main.js] Starting game...');
+            try {
+                await game.start();
+                console.log('[main.js] Game started.');
+            } catch (err) {
+                console.error('[main.js] Error starting game:', err);
+            }
         }, undefined, function(error) {
-            console.error('Font loading failed:', error);
+            console.error('[main.js] Font loading failed:', error);
             ui.showMessage('Error: Could not load font. Please refresh.');
         });
     })();
 } else {
-    console.error("Error: 'renderDiv' element not found in the DOM.");
+    console.error("[main.js] Error: 'renderDiv' element not found in the DOM.");
 }
