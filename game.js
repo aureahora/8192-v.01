@@ -112,6 +112,10 @@ export var Game = /*#__PURE__*/ function() {
         this.originalMusicVolume = 0.3;
         this.tapSound = null;
         this.mergeSound = null;
+
+        // Событие для восстановления музыки после фокуса/скрытия вкладки
+        this._wasMutedByVisibility = false; // Флаг, чтобы понимать, что пауза была из-за потери фокуса
+
         this.setupAudio();
         this.setupControls();
         this.updateScore(this.score);
@@ -120,9 +124,122 @@ export var Game = /*#__PURE__*/ function() {
         this.sceneSetup.setGlowMode(this.isGlowBright);
         this.ui.updateGlowButtonText(this.isGlowBright);
         this.ui.updateMusicButtonText(this.musicPlaying);
+
+        // ИНИЦИАЛИЗАЦИЯ GamePush SDK событий управления звуком
+        this.initSoundSDKIntegration();
+
+        // ИНИЦИАЛИЗАЦИЯ событий видимости вкладки
+        this.initVisibilityEvents();
+
         console.log("[Game.js] Game instance created.");
     }
     _create_class(Game, [
+        {
+            key: "initSoundSDKIntegration",
+            value: function initSoundSDKIntegration() {
+                // Проверяем наличие SDK
+                if (!window.gamePushSDK) {
+                    console.warn("[Game.js] GamePush SDK не найден, интеграция звука невозможна.");
+                    return;
+                }
+                // ВЫКЛЮЧИЛИ ВСЕ ЗВУКИ
+                window.gamePushSDK.sounds.on('mute', () => {
+                    console.log('[Sound SDK] mute: Отключаем все звуки (музыка и эффекты).');
+                    if (this.backgroundMusic && this.backgroundMusic.isPlaying) this.backgroundMusic.pause();
+                    this.musicPlaying = false;
+                    this.ui.updateMusicButtonText(false);
+                    if (this.tapSound && this.tapSound.isPlaying) this.tapSound.pause();
+                    if (this.mergeSound && this.mergeSound.isPlaying) this.mergeSound.pause();
+                });
+                // ВЫКЛЮЧИЛИ только музыку
+                window.gamePushSDK.sounds.on('mute:music', () => {
+                    console.log('[Sound SDK] mute:music: Отключаем только музыку.');
+                    if (this.backgroundMusic && this.backgroundMusic.isPlaying) this.backgroundMusic.pause();
+                    this.musicPlaying = false;
+                    this.ui.updateMusicButtonText(false);
+                });
+                // ВЫКЛЮЧИЛИ только эффекты
+                window.gamePushSDK.sounds.on('mute:sfx', () => {
+                    console.log('[Sound SDK] mute:sfx: Отключаем только эффекты.');
+                    if (this.tapSound && this.tapSound.isPlaying) this.tapSound.pause();
+                    if (this.mergeSound && this.mergeSound.isPlaying) this.mergeSound.pause();
+                });
+                // ВКЛЮЧИЛИ ВСЕ ЗВУКИ
+                window.gamePushSDK.sounds.on('unmute', () => {
+                    console.log('[Sound SDK] unmute: Включаем все звуки (музыка и эффекты).');
+                    if (this.backgroundMusic && !window.gamePushSDK.sounds.isMusicMuted) {
+                        this.backgroundMusic.play();
+                        this.musicPlaying = true;
+                        this.ui.updateMusicButtonText(true);
+                    }
+                });
+                // ВКЛЮЧИЛИ только музыку
+                window.gamePushSDK.sounds.on('unmute:music', () => {
+                    console.log('[Sound SDK] unmute:music: Включаем только музыку.');
+                    if (this.backgroundMusic && !window.gamePushSDK.sounds.isMusicMuted) {
+                        this.backgroundMusic.play();
+                        this.musicPlaying = true;
+                        this.ui.updateMusicButtonText(true);
+                    }
+                });
+                // ВКЛЮЧИЛИ только эффекты
+                window.gamePushSDK.sounds.on('unmute:sfx', () => {
+                    console.log('[Sound SDK] unmute:sfx: Включаем только эффекты.');
+                    // В этой реализации эффекты проигрываются по событию, ничего не делаем
+                });
+                // Логируем текущее состояние звука при старте
+                console.log('[Sound SDK] Initial states:',
+                    'isMuted:', window.gamePushSDK.sounds.isMuted,
+                    'isMusicMuted:', window.gamePushSDK.sounds.isMusicMuted,
+                    'isSFXMuted:', window.gamePushSDK.sounds.isSFXMuted
+                );
+            }
+        },
+        {
+            key: "initVisibilityEvents",
+            value: function initVisibilityEvents() {
+                // Для вкладки браузера (скрытие/фокус)
+                document.addEventListener('visibilitychange', () => {
+                    if (document.hidden) {
+                        // Потеря фокуса
+                        if (window.gamePushSDK && !window.gamePushSDK.sounds.isMuted) {
+                            window.gamePushSDK.sounds.mute();
+                            this._wasMutedByVisibility = true;
+                            console.log('[Game.js] Вкладка скрыта, музыка поставлена на паузу через SDK.');
+                        }
+                    } else {
+                        // Возврат фокуса
+                        if (window.gamePushSDK && this._wasMutedByVisibility) {
+                            // Восстанавливаем звук, если пользователь не выключал вручную
+                            if (!window.gamePushSDK.sounds.isMuted) {
+                                window.gamePushSDK.sounds.unmute();
+                                console.log('[Game.js] Вкладка снова активна, восстанавливаем звук через SDK.');
+                            }
+                            this._wasMutedByVisibility = false;
+                        } else {
+                            console.log('[Game.js] Вкладка снова активна, но звук не был выключен SDK.');
+                        }
+                    }
+                });
+                // На всякий случай также слушаем focus/blur
+                window.addEventListener('blur', () => {
+                    if (window.gamePushSDK && !window.gamePushSDK.sounds.isMuted) {
+                        window.gamePushSDK.sounds.mute();
+                        this._wasMutedByVisibility = true;
+                        console.log('[Game.js] Окно браузера потеряло фокус, музыка поставлена на паузу через SDK.');
+                    }
+                });
+                window.addEventListener('focus', () => {
+                    if (window.gamePushSDK && this._wasMutedByVisibility) {
+                        if (!window.gamePushSDK.sounds.isMuted) {
+                            window.gamePushSDK.sounds.unmute();
+                            console.log('[Game.js] Окно браузера снова в фокусе, восстанавливаем звук через SDK.');
+                        }
+                        this._wasMutedByVisibility = false;
+                    }
+                });
+            }
+        },
         {
             key: "loadStats",
             value: function loadStats() {
@@ -180,8 +297,20 @@ export var Game = /*#__PURE__*/ function() {
                     _this.musicDuration = buffer.duration;
                     console.log("[Game.js] Background music loaded. Duration: " + _this.musicDuration + "s");
                     _this.ui.updateMusicButtonText(_this.musicPlaying);
-                    // CloudSaves: автозапуск музыки если musicPlaying==true
-                    if (_this.musicPlaying) {
+
+                    // Проверяем состояние через SDK и актуализируем UI
+                    if (window.gamePushSDK) {
+                        if (!window.gamePushSDK.sounds.isMusicMuted) {
+                            _this.musicPlaying = true;
+                            _this.backgroundMusic.play();
+                            _this.ui.updateMusicButtonText(true);
+                        } else {
+                            _this.musicPlaying = false;
+                            _this.backgroundMusic.pause();
+                            _this.ui.updateMusicButtonText(false);
+                        }
+                    } else if (_this.musicPlaying) {
+                        // Если нет SDK, fallback на локальное состояние
                         _this.toggleMusic();
                     }
                 }, undefined, function(error) {
@@ -209,45 +338,52 @@ export var Game = /*#__PURE__*/ function() {
         {
             key: "toggleMusic",
             value: function toggleMusic() {
-                var _this = this;
-                console.log("[Game.js] toggleMusic called. Music playing:", this.musicPlaying);
-                if (!this.backgroundMusic || !this.backgroundMusic.buffer) {
-                    console.warn("[Game.js] Attempted to toggle music, but buffer is not loaded.");
+                // Теперь управление музыкой только через SDK
+                if (!window.gamePushSDK) {
+                    console.warn("[Game.js] toggleMusic: Нет доступа к GamePush SDK, fallback на локальное управление.");
+                    // Фоллбек на старое поведение для тестов без SDK
+                    if (!this.backgroundMusic || !this.backgroundMusic.buffer) {
+                        console.warn("[Game.js] Attempted to toggle music, but buffer is not loaded.");
+                        return;
+                    }
+                    clearTimeout(this.fadeTimeout);
+                    this.isFadingOut = false;
+                    if (this.musicPlaying) {
+                        this.backgroundMusic.pause();
+                        this.musicPlaying = false;
+                        this.backgroundMusic.setVolume(this.originalMusicVolume);
+                    } else {
+                        var playMusic = () => {
+                            this.backgroundMusic.setVolume(this.originalMusicVolume);
+                            this.backgroundMusic.play();
+                            this.musicPlaying = true;
+                            this.isFadingOut = false;
+                            this.ui.updateMusicButtonText(this.musicPlaying);
+                        };
+                        if (this.audioListener.context.state === 'suspended') {
+                            this.audioListener.context.resume().then(() => playMusic())
+                                .catch(e => console.error("[Game.js] Error resuming AudioContext:", e));
+                        } else {
+                            playMusic();
+                        }
+                    }
+                    if (this.audioListener.context.state !== 'suspended') {
+                        this.ui.updateMusicButtonText(this.musicPlaying);
+                    }
+                    CloudSaves.save('music', this.musicPlaying ? 1 : 0).catch(e => {
+                        console.error("[Game.js] Ошибка CloudSaves.save (music):", e);
+                    });
                     return;
                 }
-                clearTimeout(this.fadeTimeout);
-                this.isFadingOut = false;
-                if (this.musicPlaying) {
-                    this.backgroundMusic.pause();
-                    this.musicPlaying = false;
-                    this.backgroundMusic.setVolume(this.originalMusicVolume);
+                // SDK управление
+                if (window.gamePushSDK.sounds.isMusicMuted) {
+                    window.gamePushSDK.sounds.unmuteMusic();
+                    console.log("[Game.js] toggleMusic: Включить музыку через SDK.");
                 } else {
-                    var playMusic = function() {
-                        _this.backgroundMusic.setVolume(_this.originalMusicVolume);
-                        _this.backgroundMusic.play();
-                        _this.musicPlaying = true;
-                        _this.isFadingOut = false;
-                        _this.ui.updateMusicButtonText(_this.musicPlaying);
-                    };
-                    if (this.audioListener.context.state === 'suspended') {
-                        this.audioListener.context.resume().then(function() {
-                            playMusic();
-                        }).catch(function(e) {
-                            return console.error("[Game.js] Error resuming AudioContext:", e);
-                        });
-                    } else {
-                        playMusic();
-                    }
+                    window.gamePushSDK.sounds.muteMusic();
+                    console.log("[Game.js] toggleMusic: Отключить музыку через SDK.");
                 }
-                if (this.audioListener.context.state !== 'suspended') {
-                    this.ui.updateMusicButtonText(this.musicPlaying);
-                }
-                // CloudSaves: sync music
-                CloudSaves.save('music', this.musicPlaying ? 1 : 0).then(function() {
-                    // Saved successfully
-                }).catch(function(e) {
-                    console.error("[Game.js] Ошибка CloudSaves.save (music):", e);
-                });
+                // Состояние и UI обновятся в обработчиках SDK событий
             }
         },
         {
@@ -310,7 +446,7 @@ export var Game = /*#__PURE__*/ function() {
                     var hasMerges = moveResult.animations.some(function(anim) {
                         return anim.type === 'merge';
                     });
-                    if (!hasMerges && this.tapSound && this.tapSound.buffer) {
+                    if (!hasMerges && this.tapSound && this.tapSound.buffer && (!window.gamePushSDK || !window.gamePushSDK.sounds.isSFXMuted)) {
                         if (this.audioListener.context.state === 'suspended') {
                             this.audioListener.context.resume();
                         }
@@ -363,7 +499,7 @@ export var Game = /*#__PURE__*/ function() {
                                 _this.ui.updateHighestTile(_this.highestTileValue);
                                 console.log("[Game.js] New highest tile value:", tile.value);
                             }
-                            if (_this.mergeSound && _this.mergeSound.buffer) {
+                            if (_this.mergeSound && _this.mergeSound.buffer && (!window.gamePushSDK || !window.gamePushSDK.sounds.isSFXMuted)) {
                                 if (_this.audioListener.context.state === 'suspended') {
                                     _this.audioListener.context.resume();
                                 }
