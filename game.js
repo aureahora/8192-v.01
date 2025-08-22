@@ -22,19 +22,18 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Grid } from './grid.js';
 import { InputHandler } from './input.js';
 import { SceneSetup } from './sceneSetup.js';
-import { Tile } from './tile.js'; // Added missing import
-import { TILE_COLORS, GRID_SIZE, TARGET_VALUE, CELL_GAP, CELL_SIZE } from './constants.js'; // Added CELL_GAP and CELL_SIZE
-var ANIMATION_DURATION = 150; // ms for tile movement/creation
-var WOBBLE_DURATION = 100; // ms for invalid move wobble
-var WOBBLE_MAGNITUDE = 0.15; // How far tiles wobble (fraction of CELL_SIZE)
-var MUSIC_FADE_DURATION = 5; // Seconds for fade out before loop
-// Simple Easing Functions
+import { Tile } from './tile.js';
+import { TILE_COLORS, GRID_SIZE, TARGET_VALUE, CELL_GAP, CELL_SIZE } from './constants.js';
+
+var ANIMATION_DURATION = 150;
+var WOBBLE_DURATION = 100;
+var WOBBLE_MAGNITUDE = 0.15;
+var MUSIC_FADE_DURATION = 5;
+
 var easing = {
-    // Ease-out cubic: decelerating to zero velocity
     easeOutCubic: function(t) {
         return --t * t * t + 1;
     },
-    // Ease-in-out sine: accelerating until halfway, then decelerating
     easeInOutSine: function(t) {
         return -(Math.cos(Math.PI * t) - 1) / 2;
     }
@@ -43,17 +42,14 @@ var easing = {
 // --- GamePush: Функция ожидания SDK ---
 function callGameStartWhenReady() {
     let attempts = 0;
-    const maxAttempts = 30; // ~3 сек ожидания
+    const maxAttempts = 30;
     const interval = setInterval(() => {
         if (window.gamePushSDK) {
-            if (typeof window.gamePushSDK.GameStart === "function") {
-                window.gamePushSDK.GameStart();
-                console.log("[Game.js] window.gamePushSDK.GameStart() успешно вызван через ожидание.");
-            } else if (typeof window.gamePushSDK.GameReady === "function") {
-                window.gamePushSDK.GameReady();
-                console.log("[Game.js] window.gamePushSDK.GameReady() успешно вызван через ожидание.");
+            if (typeof window.gamePushSDK.gameStart === "function") {
+                window.gamePushSDK.gameStart();
+                console.log("[Game.js] window.gamePushSDK.gameStart() успешно вызван через ожидание.");
             } else {
-                console.log("[Game.js] GamePushSDK обнаружен, но методы GameStart/GameReady отсутствуют.");
+                console.log("[Game.js] GamePushSDK обнаружен, но метод gameStart отсутствует.");
             }
             clearInterval(interval);
         } else if (++attempts > maxAttempts) {
@@ -63,48 +59,58 @@ function callGameStartWhenReady() {
     }, 100);
 }
 
+// --- GamePush: Геймплей-методы ---
+function callGameplayStart() {
+    if (window.gamePushSDK && typeof window.gamePushSDK.gameplayStart === "function") {
+        window.gamePushSDK.gameplayStart();
+        console.log("[Game.js] GamePushSDK.gameplayStart() вызван.");
+    }
+}
+function callGameplayStop() {
+    if (window.gamePushSDK && typeof window.gamePushSDK.gameplayStop === "function") {
+        window.gamePushSDK.gameplayStop();
+        console.log("[Game.js] GamePushSDK.gameplayStop() вызван.");
+    }
+}
+
 export var Game = /*#__PURE__*/ function() {
     "use strict";
     function Game(container, ui, loadedFont) {
         _class_call_check(this, Game);
         this.container = container;
         this.ui = ui;
-        this.loadedFont = loadedFont; // Store font reference if needed later
+        this.loadedFont = loadedFont;
         this.sceneSetup = new SceneSetup(container);
-        // Pass the loadedFont to the Grid constructor
         this.grid = new Grid(GRID_SIZE, this.sceneSetup.scene, this.loadedFont);
         this.inputHandler = new InputHandler(container);
         this.score = 0;
-        this.isMoving = false; // Prevent input during animation
-        this.animations = []; // Store active animations { tile, targetPos, targetScale, startTime }
-        this.gameState = 'playing'; // playing, won, lost
-        this.clock = new THREE.Clock(); // Clock for shader timing
-        this.lastMoveDirection = new THREE.Vector2(0, 0); // Store last input direction for particles
-        // Statistics
+        this.isMoving = false;
+        this.animations = [];
+        this.gameState = 'playing';
+        this.clock = new THREE.Clock();
+        this.lastMoveDirection = new THREE.Vector2(0, 0);
         this.highScore = 0;
         this.highestTileValue = 0;
         this.gamesPlayed = 0;
-        this.loadStats(); // Load stats from localStorage
-        // Audio properties
+        this.loadStats();
         this.audioListener = null;
         this.backgroundMusic = null;
         this.musicPlaying = false;
         this.musicDuration = 0;
         this.isFadingOut = false;
         this.fadeTimeout = null;
-        this.originalMusicVolume = 0.3; // Store the intended volume
-        this.tapSound = null; // Property for the tap sound
-        this.mergeSound = null; // Add property for the merge sound
-        this.setupAudio(); // Initialize audio components
+        this.originalMusicVolume = 0.3;
+        this.tapSound = null;
+        this.mergeSound = null;
+        this.setupAudio();
         this.setupControls();
-        this.updateScore(0); // Also updates high score display initially if needed
-        this.ui.updateHighestTile(this.highestTileValue); // Update UI with loaded stats
-        this.ui.updateGamesPlayed(this.gamesPlayed); // Update UI with loaded stats
+        this.updateScore(0);
+        this.ui.updateHighestTile(this.highestTileValue);
+        this.ui.updateGamesPlayed(this.gamesPlayed);
         console.log("[Game.js] Game instance created.");
     }
     _create_class(Game, [
         {
-            // --- Statistics Persistence ---
             key: "loadStats",
             value: function loadStats() {
                 this.highScore = parseInt(localStorage.getItem('highScore') || '0', 10);
@@ -123,7 +129,6 @@ export var Game = /*#__PURE__*/ function() {
             }
         },
         {
-            // --- End Statistics Persistence ---
             key: "setupControls",
             value: function setupControls() {
                 var _this = this;
@@ -132,10 +137,6 @@ export var Game = /*#__PURE__*/ function() {
                     console.log("[Game.js] User input: move direction", direction);
                     _this.moveTiles(direction);
                 });
-                // OrbitControls are removed for production, uncomment if needed for debugging
-                // Example: import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-                //          this.controls = new OrbitControls(this.sceneSetup.camera, this.sceneSetup.renderer.domElement);
-                //          ... configure controls ...
                 console.log("[Game.js] Controls set up.");
             }
         },
@@ -144,36 +145,33 @@ export var Game = /*#__PURE__*/ function() {
             value: function setupAudio() {
                 var _this = this;
                 this.audioListener = new THREE.AudioListener();
-                this.sceneSetup.camera.add(this.audioListener); // Attach listener to camera
+                this.sceneSetup.camera.add(this.audioListener);
                 this.backgroundMusic = new THREE.Audio(this.audioListener);
-                this.tapSound = new THREE.Audio(this.audioListener); // Initialize tap sound object
-                this.mergeSound = new THREE.Audio(this.audioListener); // Initialize merge sound object
+                this.tapSound = new THREE.Audio(this.audioListener);
+                this.mergeSound = new THREE.Audio(this.audioListener);
                 var audioLoader = new THREE.AudioLoader();
-                // Load Background Music
                 audioLoader.load('https://play.rosebud.ai/assets/Ethereal Drift.mp3?Gvns', function(buffer) {
                     _this.backgroundMusic.setBuffer(buffer);
-                    _this.backgroundMusic.setLoop(false); // Disable internal loop
+                    _this.backgroundMusic.setLoop(false);
                     _this.backgroundMusic.setVolume(_this.originalMusicVolume);
-                    _this.musicDuration = buffer.duration; // Store duration
+                    _this.musicDuration = buffer.duration;
                     console.log("[Game.js] Background music loaded. Duration: " + _this.musicDuration + "s");
-                    _this.ui.updateMusicButtonText(_this.musicPlaying); // Update button state
+                    _this.ui.updateMusicButtonText(_this.musicPlaying);
                 }, undefined, function(error) {
                     return console.error('[Game.js] Error loading background music:', error);
                 });
-                // Load Tap Sound
                 audioLoader.load('https://play.rosebud.ai/assets/screen-tap-38717.mp3?5AkB', function(buffer) {
                     _this.tapSound.setBuffer(buffer);
                     _this.tapSound.setLoop(false);
-                    _this.tapSound.setVolume(0.6); // Adjust volume as needed
+                    _this.tapSound.setVolume(0.6);
                     console.log('[Game.js] Tap sound loaded.');
                 }, undefined, function(error) {
                     return console.error('[Game.js] Error loading tap sound:', error);
                 });
-                // Load Merge Sound
                 audioLoader.load('https://play.rosebud.ai/assets/slime-squish-5-218569.mp3?4N1C', function(buffer) {
                     _this.mergeSound.setBuffer(buffer);
                     _this.mergeSound.setLoop(false);
-                    _this.mergeSound.setVolume(0.7); // Adjust volume as needed
+                    _this.mergeSound.setVolume(0.7);
                     console.log('[Game.js] Merge sound loaded.');
                 }, undefined, function(error) {
                     return console.error('[Game.js] Error loading merge sound:', error);
@@ -188,31 +186,25 @@ export var Game = /*#__PURE__*/ function() {
                 console.log("[Game.js] toggleMusic called. Music playing:", this.musicPlaying);
                 if (!this.backgroundMusic || !this.backgroundMusic.buffer) {
                     console.warn("[Game.js] Attempted to toggle music, but buffer is not loaded.");
-                    return; // Don't toggle if not loaded
+                    return;
                 }
-                // Clear any pending fade/restart timeout if toggling manually
                 clearTimeout(this.fadeTimeout);
-                this.isFadingOut = false; // Stop any active fade calculation
+                this.isFadingOut = false;
                 console.log("[Game.js] AudioContext state:", this.audioListener.context.state);
                 if (this.musicPlaying) {
-                    // --- Stop Music ---
                     console.log("[Game.js] Pausing music...");
-                    this.backgroundMusic.pause(); // Use pause to preserve current time for potential resume
+                    this.backgroundMusic.pause();
                     this.musicPlaying = false;
-                    // Reset volume to original in case it was paused mid-fade
                     this.backgroundMusic.setVolume(this.originalMusicVolume);
                 } else {
-                    // --- Start Music ---
                     var playMusic = function() {
                         console.log("[Game.js] Playing music...");
-                        // Ensure volume is correct before playing
                         _this.backgroundMusic.setVolume(_this.originalMusicVolume);
                         _this.backgroundMusic.play();
                         _this.musicPlaying = true;
-                        _this.isFadingOut = false; // Reset fade state on new play
+                        _this.isFadingOut = false;
                         _this.ui.updateMusicButtonText(_this.musicPlaying);
                     };
-                    // IMPORTANT: Resume audio context on first user interaction
                     if (this.audioListener.context.state === 'suspended') {
                         console.log("[Game.js] AudioContext is suspended, attempting to resume...");
                         this.audioListener.context.resume().then(function() {
@@ -225,8 +217,6 @@ export var Game = /*#__PURE__*/ function() {
                         playMusic();
                     }
                 }
-                // Always update the UI text based on the intended state immediately
-                // (unless waiting for context resume, handled in playMusic)
                 if (this.audioListener.context.state !== 'suspended') {
                     this.ui.updateMusicButtonText(this.musicPlaying);
                 }
@@ -236,44 +226,37 @@ export var Game = /*#__PURE__*/ function() {
             key: "start",
             value: function start() {
                 console.log("[Game.js] Game start called.");
-                // Increment games played on first start
                 this.gamesPlayed++;
                 this.saveStats();
                 this.ui.updateGamesPlayed(this.gamesPlayed);
-                // --- Standard Start State ---
-                this.grid.clear(); // Ensure grid is empty
+                this.grid.clear();
                 this.grid.addRandomTile();
                 this.grid.addRandomTile();
-                this.animate(); // Start the animation loop
-
-                // --- GamePush интеграция: безопасный вызов GameStart/GameReady ---
-                callGameStartWhenReady();
+                this.animate();
+                callGameStartWhenReady(); // GamePush старт
+                callGameplayStart();     // Геймплей старт при начале партии
             }
         },
         {
             key: "reset",
             value: function reset() {
                 console.log("[Game.js] Game reset called.");
-                // Increment games played on reset
                 this.gamesPlayed++;
                 this.saveStats();
                 this.ui.updateGamesPlayed(this.gamesPlayed);
                 this.grid.clear();
                 this.score = 0;
-                this.updateScore(0); // Update score and potentially high score display
+                this.updateScore(0);
                 this.isMoving = false;
                 this.animations = [];
                 this.gameState = 'playing';
                 this.ui.hideMessage();
                 this.grid.addRandomTile();
                 this.grid.addRandomTile();
-                // Reset camera if needed
                 this.sceneSetup.resetCamera();
-                // if (this.controls) this.controls.reset(); // Uncomment if using OrbitControls
-                // Stop music and clear any fade timeouts on reset
                 clearTimeout(this.fadeTimeout);
                 if (this.backgroundMusic && this.backgroundMusic.isPlaying) {
-                    this.backgroundMusic.stop(); // Use stop to reset playback fully
+                    this.backgroundMusic.stop();
                 }
                 this.musicPlaying = false;
                 this.isFadingOut = false;
@@ -281,6 +264,7 @@ export var Game = /*#__PURE__*/ function() {
                     this.backgroundMusic.setVolume(this.originalMusicVolume);
                 }
                 this.ui.updateMusicButtonText(this.musicPlaying);
+                callGameplayStart(); // Новый игровой процесс при reset
             }
         },
         {
@@ -291,16 +275,13 @@ export var Game = /*#__PURE__*/ function() {
                 var moveResult = this.grid.moveTiles(direction);
                 console.log("[Game.js] moveTiles called. Direction:", direction, "Move result:", moveResult);
                 if (moveResult.moved) {
-                    // --- Hide win message if player continues playing ---
                     if (this.gameState === 'won') {
                         this.ui.hideMessage();
                         console.log("[Game.js] Player continued after win. Message hidden.");
                     }
-                    // --- Check if the move involved merges ---
                     var hasMerges = moveResult.animations.some(function(anim) {
                         return anim.type === 'merge';
                     });
-                    // --- Play Tap Sound Only if NOT Merging ---
                     if (!hasMerges && this.tapSound && this.tapSound.buffer) {
                         if (this.audioListener.context.state === 'suspended') {
                             this.audioListener.context.resume();
@@ -311,28 +292,22 @@ export var Game = /*#__PURE__*/ function() {
                         this.tapSound.play();
                         console.log("[Game.js] Tap sound played (no merges).");
                     }
-                    // --- End Tap Sound Logic ---
-                    this.lastMoveDirection.set(direction.x, direction.y); // Store the direction
+                    this.lastMoveDirection.set(direction.x, direction.y);
                     this.isMoving = true;
                     this.score += moveResult.score;
                     this.updateScore(this.score);
-                    // --- Add Anticipation Movement ---
-                    var anticipationAmount = 0.2; // How much to shift (fraction of gap)
+                    var anticipationAmount = 0.2;
                     var dirVec = new THREE.Vector3(direction.x, direction.y, 0);
                     var anticipationOffset = dirVec.multiplyScalar(anticipationAmount * CELL_GAP);
                     moveResult.animations.forEach(function(anim) {
                         var tile = anim.tile;
                         var targetPos = _this.grid.getCellPosition(anim.to.x, anim.to.y);
-                        // Apply anticipation offset *before* capturing startPos for non-merge-targets
                         if (anim.type === 'move' || anim.type === 'merge-source') {
                             tile.mesh.position.add(anticipationOffset);
                         }
-                        var startPos = tile.mesh.position.clone(); // Capture position *after* potential offset
-                        // Calculate world position for particle interaction
+                        var startPos = tile.mesh.position.clone();
                         var worldTargetPos = _this.grid.gridGroup.localToWorld(targetPos.clone());
-                        // Handle merges visually
                         if (anim.mergedFrom) {
-                            // Move original tiles to merge point, then spawn new one
                             anim.mergedFrom.forEach(function(oldTile) {
                                 var oldStartPos = oldTile.mesh.position.clone();
                                 _this.animations.push({
@@ -344,25 +319,22 @@ export var Game = /*#__PURE__*/ function() {
                                     duration: ANIMATION_DURATION / 2
                                 });
                             });
-                            // New merged tile flashes in
-                            tile.mesh.position.copy(targetPos); // Place immediately
+                            tile.mesh.position.copy(targetPos);
                             _this.animations.push({
                                 tile: tile,
                                 originalColor: tile.mesh.material.color.clone(),
                                 flashColor: new THREE.Color(0xffffff),
                                 startTime: Date.now() + ANIMATION_DURATION / 2,
                                 type: 'flash',
-                                duration: ANIMATION_DURATION // Use full duration for the flash effect
+                                duration: ANIMATION_DURATION
                             });
                             _this.sceneSetup.addParticleInteraction(worldTargetPos);
-                            // Update highest tile value if merged tile is higher
                             if (tile.value > _this.highestTileValue) {
                                 _this.highestTileValue = tile.value;
                                 _this.saveStats();
                                 _this.ui.updateHighestTile(_this.highestTileValue);
                                 console.log("[Game.js] New highest tile value:", tile.value);
                             }
-                            // --- Play Merge Sound ---
                             if (_this.mergeSound && _this.mergeSound.buffer) {
                                 if (_this.audioListener.context.state === 'suspended') {
                                     _this.audioListener.context.resume();
@@ -374,7 +346,6 @@ export var Game = /*#__PURE__*/ function() {
                                 console.log("[Game.js] Merge sound played.");
                             }
                         } else if (anim.type === 'move') {
-                            // Simple move - startPos already captured after offset
                             _this.animations.push({
                                 tile: tile,
                                 targetPos: targetPos,
@@ -383,16 +354,14 @@ export var Game = /*#__PURE__*/ function() {
                                 type: 'move',
                                 duration: ANIMATION_DURATION
                             });
-                            // Add interaction point for the move destination
                             _this.sceneSetup.addParticleInteraction(worldTargetPos);
                         }
                     });
-                    // Delayed adding of new tile to allow movement animations to start/finish
                     setTimeout(function() {
                         var newTile = _this.grid.addRandomTile();
                         if (newTile) {
                             var targetPos = _this.grid.getCellPosition(newTile.x, newTile.y);
-                            newTile.mesh.position.copy(targetPos); // Place immediately
+                            newTile.mesh.position.copy(targetPos);
                             _this.animations.push({
                                 tile: newTile,
                                 originalColor: newTile.mesh.material.color.clone(),
@@ -403,26 +372,25 @@ export var Game = /*#__PURE__*/ function() {
                             });
                             console.log("[Game.js] New tile added at", newTile.x, newTile.y, "with value", newTile.value);
                         }
-                        // Check game state after new tile is added (logically)
                         if (_this.gameState !== 'won' && _this.grid.checkWinCondition(TARGET_VALUE)) {
                             _this.gameState = 'won';
                             _this.ui.showMessage('You Win! Keep playing?');
+                            callGameplayStop(); // Завершение геймплея при победе
                             console.log("[Game.js] Win condition reached!");
                         } else if (!_this.grid.canMove()) {
                             _this.gameState = 'lost';
                             _this.ui.showMessage('Game Over!');
+                            callGameplayStop(); // Завершение геймплея при проигрыше
                             console.log("[Game.js] Game Over (no moves left).");
                         }
-                    // isMoving will be set to false when all animations complete in the update loop
-                    }, moveResult.moved ? ANIMATION_DURATION : 0); // Add delay only if tiles actually moved or merged
+                    }, moveResult.moved ? ANIMATION_DURATION : 0);
                 } else {
-                    // --- Trigger Wobble Animation on Invalid Move ---
                     console.log("[Game.js] Invalid move (no tiles moved). Triggering wobble animation.");
                     this.triggerWobbleAnimation(direction);
-                    // Check for game over even if no tiles moved this turn (after potential wobble)
                     if (this.gameState === 'playing' && !this.grid.canMove()) {
                         this.gameState = 'lost';
                         this.ui.showMessage('Game Over!');
+                        callGameplayStop(); // Завершение геймплея при проигрыше после неудачного хода
                         console.log("[Game.js] Game Over (after invalid move, no moves left).");
                     }
                 }
@@ -431,8 +399,8 @@ export var Game = /*#__PURE__*/ function() {
         {
             key: "triggerWobbleAnimation",
             value: function triggerWobbleAnimation(direction) {
-                if (this.isMoving) return; // Don't wobble if already animating something else
-                this.isMoving = true; // Prevent input during wobble
+                if (this.isMoving) return;
+                this.isMoving = true;
                 var wobbleVec = new THREE.Vector3(direction.x, direction.y, 0);
                 for(var r = 0; r < this.grid.size; r++){
                     for(var c = 0; c < this.grid.size; c++){
@@ -445,7 +413,7 @@ export var Game = /*#__PURE__*/ function() {
                                 duration: WOBBLE_DURATION,
                                 direction: wobbleVec.clone(),
                                 originalPos: tile.mesh.position.clone(),
-                                magnitude: WOBBLE_MAGNITUDE * CELL_SIZE // Now defined via import
+                                magnitude: WOBBLE_MAGNITUDE * CELL_SIZE
                             });
                         }
                     }
@@ -458,14 +426,12 @@ export var Game = /*#__PURE__*/ function() {
             value: function updateScore(newScore) {
                 this.score = newScore;
                 this.ui.updateScore(this.score);
-                // Check and update high score
                 var wasHighScore = false;
                 if (this.score > this.highScore) {
                     this.highScore = this.score;
-                    this.saveStats(); // Save whenever high score changes
+                    this.saveStats();
                     wasHighScore = true;
                 }
-                // Always update the high score display (even if score didn't beat it, ensures initial display)
                 this.ui.updateHighScore(this.highScore);
                 if (wasHighScore) {
                     console.log("[Game.js] New high score:", this.highScore);
@@ -473,7 +439,6 @@ export var Game = /*#__PURE__*/ function() {
             }
         },
         {
-            // --- Animation Update Helpers ---
             key: "_updateMoveAnimation",
             value: function _updateMoveAnimation(anim, progress) {
                 var easedProgress = easing.easeOutCubic(progress);
@@ -497,7 +462,6 @@ export var Game = /*#__PURE__*/ function() {
             }
         },
         {
-            // --- Animation Finalization Helpers ---
             key: "_finalizeMoveAnimation",
             value: function _finalizeMoveAnimation(anim) {
                 anim.tile.mesh.position.copy(anim.targetPos);
@@ -526,12 +490,10 @@ export var Game = /*#__PURE__*/ function() {
             value: function updateAnimations() {
                 var now = Date.now();
                 var stillAnimating = false;
-                // Iterate backwards to safely remove elements using splice
                 for(var i = this.animations.length - 1; i >= 0; i--){
                     var anim = this.animations[i];
                     var elapsed = now - anim.startTime;
                     var progress = Math.min(elapsed / anim.duration, 1);
-                    // Apply interpolation based on type using helper functions
                     if (anim.type === 'move' || anim.type === 'merge-source') {
                         this._updateMoveAnimation(anim, progress);
                     } else if (anim.type === 'flash') {
@@ -539,9 +501,7 @@ export var Game = /*#__PURE__*/ function() {
                     } else if (anim.type === 'wobble') {
                         this._updateWobbleAnimation(anim, progress);
                     }
-                    // Check if animation is finished
                     if (progress >= 1) {
-                        // Set final state using helper functions
                         if (anim.type === 'move') {
                             this._finalizeMoveAnimation(anim);
                         } else if (anim.type === 'flash') {
@@ -551,22 +511,18 @@ export var Game = /*#__PURE__*/ function() {
                         } else if (anim.type === 'wobble') {
                             this._finalizeWobbleAnimation(anim);
                         }
-                        // Remove completed animation from the array
                         this.animations.splice(i, 1);
                     } else {
-                        // If any animation is not finished, set the flag
                         stillAnimating = true;
                     }
                 }
-                // Check if all animations are done
                 if (!stillAnimating && this.isMoving) {
-                    this.isMoving = false; // Allow next input
-                    // Final check for game over after animations complete and new tile is placed
+                    this.isMoving = false;
                     if (this.gameState === 'playing' && !this.grid.canMove()) {
                         this.gameState = 'lost';
                         this.ui.showMessage('Game Over!');
-                        // Save stats one last time on game over, just in case
                         this.saveStats();
+                        callGameplayStop(); // Завершение геймплея при проигрыше после анимации
                         console.log("[Game.js] Game Over (after animations, no moves left).");
                     }
                 }
@@ -578,39 +534,33 @@ export var Game = /*#__PURE__*/ function() {
                 var _this = this;
                 var _this_backgroundMusic, _this_audioListener;
                 if (!this.musicPlaying || this.isFadingOut || !((_this_backgroundMusic = this.backgroundMusic) === null || _this_backgroundMusic === void 0 ? void 0 : _this_backgroundMusic.isPlaying) || !this.musicDuration || this.musicDuration === 0 || !((_this_audioListener = this.audioListener) === null || _this_audioListener === void 0 ? void 0 : _this_audioListener.context)) {
-                    return; // Added check for audioListener context
+                    return;
                 }
-                // Calculate playback time manually using AudioContext time and internal audio properties
                 var contextTime = this.audioListener.context.currentTime;
-                var startTime = this.backgroundMusic.startTime || 0; // Time when play() was last called
-                var offset = this.backgroundMusic.offset || 0; // Offset within the buffer where playback started
-                var playbackTime = (contextTime - startTime + offset) % this.musicDuration; // Modulo duration for looping tracks
+                var startTime = this.backgroundMusic.startTime || 0;
+                var offset = this.backgroundMusic.offset || 0;
+                var playbackTime = (contextTime - startTime + offset) % this.musicDuration;
                 var fadeStartTime = this.musicDuration - MUSIC_FADE_DURATION;
                 if (playbackTime >= fadeStartTime) {
                     console.log("[Game.js] Starting music fade out at " + playbackTime.toFixed(2) + "s (Context Time: " + contextTime.toFixed(2) + ")");
                     this.isFadingOut = true;
                     var gainNode = this.backgroundMusic.getOutput();
                     var now = this.audioListener.context.currentTime;
-                    // Schedule the fade using linearRamp
-                    gainNode.gain.setValueAtTime(gainNode.gain.value, now); // Start ramp from current value
+                    gainNode.gain.setValueAtTime(gainNode.gain.value, now);
                     gainNode.gain.linearRampToValueAtTime(0, now + MUSIC_FADE_DURATION);
-                    // Schedule the restart slightly after the fade completes
                     this.fadeTimeout = setTimeout(function() {
-                        // Check if music should still be playing (user might have paused/reset)
                         if (_this.backgroundMusic && _this.musicPlaying) {
                             console.log("[Game.js] Fade complete, restarting music.");
-                            _this.backgroundMusic.stop(); // Stop playback fully
-                            // Volume is already 0 from fade, setVolume before next play
+                            _this.backgroundMusic.stop();
                             _this.backgroundMusic.setVolume(_this.originalMusicVolume);
-                            _this.backgroundMusic.play(); // Restart from beginning
-                            _this.isFadingOut = false; // Ready for next fade cycle
+                            _this.backgroundMusic.play();
+                            _this.isFadingOut = false;
                         } else {
                             console.log("[Game.js] Fade timeout completed, but music was stopped/paused.");
-                            // Ensure volume is reset if stopped mid-fade restart process
                             if (_this.backgroundMusic) _this.backgroundMusic.setVolume(_this.originalMusicVolume);
                             _this.isFadingOut = false;
                         }
-                    }, MUSIC_FADE_DURATION * 1000 + 50); // Add 50ms buffer
+                    }, MUSIC_FADE_DURATION * 1000 + 50);
                 }
             }
         },
@@ -622,17 +572,12 @@ export var Game = /*#__PURE__*/ function() {
                     return _this.animate();
                 });
                 this.updateAnimations();
-                this.checkMusicLoopFade(); // Check for music fade/loop
-                // Update background shader time uniform
+                this.checkMusicLoopFade();
                 if (this.sceneSetup.backgroundMaterial) {
                     this.sceneSetup.backgroundMaterial.uniforms.time.value = this.clock.getElapsedTime();
                 }
-                // Update the shader transition (if active)
                 this.sceneSetup.updateShaderTransition();
-                // Update particles, passing the last move direction
                 this.sceneSetup.updateParticles(this.lastMoveDirection);
-                // if (this.controls) this.controls.update(); // Uncomment if using OrbitControls
-                // Use the composer to render the scene with post-processing effects
                 this.sceneSetup.composer.render();
             }
         }
