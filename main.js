@@ -158,21 +158,51 @@ if (renderDiv) {
             // --- CloudSaves: ждем SDK и облако ---
             let cloudStats = null;
             try {
+                console.log('[main.js] Ожидание инициализации GamePush SDK...');
                 let attempts = 0;
                 while (!window.gamePushSDK && attempts < 50) {
                     await new Promise(res => setTimeout(res, 100));
                     attempts++;
                 }
+                
                 if (window.gamePushSDK) {
+                    console.log('[main.js] GamePush SDK инициализирован, загружаем данные из облака...');
                     cloudStats = await CloudSaves.loadAll();
-                    console.log('[main.js] Cloud stats loaded:', cloudStats);
+                    
+                    // Логируем загруженные данные для отладки
+                    console.log('[main.js] Загружены данные из облака:', cloudStats);
+                    
+                    // Проверяем, есть ли прогресс игры
+                    if (cloudStats.progress) {
+                        console.log('[main.js] Найден сохраненный прогресс игры в облаке');
+                        
+                        // Если progress - строка, пробуем распарсить JSON
+                        if (typeof cloudStats.progress === 'string') {
+                            try {
+                                const progressObj = JSON.parse(cloudStats.progress);
+                                console.log('[main.js] Прогресс игры успешно распарсен:', 
+                                    `Счет: ${progressObj.score}`, 
+                                    `Кубиков: ${progressObj.grid?.length || 0}`);
+                            } catch (e) {
+                                console.error('[main.js] Ошибка при парсинге прогресса:', e);
+                            }
+                        } else if (typeof cloudStats.progress === 'object') {
+                            console.log('[main.js] Прогресс игры получен как объект:', 
+                                `Счет: ${cloudStats.progress.score}`, 
+                                `Кубиков: ${cloudStats.progress.grid?.length || 0}`);
+                        }
+                    } else {
+                        console.log('[main.js] Сохраненный прогресс игры не найден в облаке');
+                    }
                 } else {
-                    console.warn('[main.js] GamePush SDK not initialized after waiting.');
+                    console.warn('[main.js] GamePush SDK не инициализирован после ожидания');
                 }
             } catch (e) {
                 console.warn('[main.js] Не удалось загрузить облачные сохранения:', e);
             }
+            
             // Game instance, cloud stats передаем
+            console.log('[main.js] Создание экземпляра игры с данными из облака');
             var game = new Game(renderDiv, ui, loadedFont, cloudStats);
 
             // --- Звуковая интеграция ---
@@ -185,6 +215,17 @@ if (renderDiv) {
             try {
                 await game.start();
                 console.log('[main.js] Game started.');
+                
+                // При первом запуске сохраняем начальное состояние игры
+                if (!cloudStats?.progress) {
+                    console.log('[main.js] Сохраняем начальное состояние игры в облако');
+                    try {
+                        await game.saveProgress();
+                        console.log('[main.js] Начальное состояние игры успешно сохранено в облако');
+                    } catch (err) {
+                        console.error('[main.js] Ошибка при сохранении начального состояния игры:', err);
+                    }
+                }
             } catch (err) {
                 console.error('[main.js] Error starting game:', err);
             }
