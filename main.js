@@ -210,6 +210,17 @@ if (renderDiv) {
             initVisibilityEvents(game);
 
             setupGameListeners(ui, game);
+
+            // --- Новый обработчик resize для адаптивности ---
+            window.addEventListener('resize', function() {
+                if (game && typeof game.handleResize === 'function') {
+                    game.handleResize();
+                }
+                if (ui && typeof ui.adjustLayout === 'function') {
+                    ui.adjustLayout();
+                }
+            });
+
             // Log before starting game
             console.log('[main.js] Starting game...');
             try {
