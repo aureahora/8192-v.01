@@ -620,7 +620,7 @@ export var Game = /*#__PURE__*/ function() {
                     console.log(`[Game.js] Reset: добавлен второй кубик: x=${tile2.x}, y=${tile2.y}, value=${tile2.value}`);
                 }
                 
-                this.sceneSetup.resetCamera();
+                this.sceneSetup.adjustCameraToFitGrid(this.ui.uiContainer.offsetHeight);
                 clearTimeout(this.fadeTimeout);
                 if (this.backgroundMusic && this.backgroundMusic.isPlaying) {
                     this.backgroundMusic.stop();

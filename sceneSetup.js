@@ -23,6 +23,8 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { createParticles, updateParticles } from './particleUtils.js'; // Import particle functions
+import { GRID_SIZE, CELL_SIZE, CELL_GAP } from './constants.js';
+
 // Removed SquiggleMaterial import
 var PARTICLE_COUNT = 80; // Significantly reduced particle count
 export var SceneSetup = /*#__PURE__*/ function() {
@@ -67,7 +69,7 @@ export var SceneSetup = /*#__PURE__*/ function() {
         // Camera
         var aspect = container.clientWidth / container.clientHeight;
         this.camera = new THREE.PerspectiveCamera(50, aspect, 0.1, 100);
-        this.resetCamera();
+        this.adjustCameraToFitGrid();
         // Renderer
         this.renderer = new THREE.WebGLRenderer({
             antialias: true
@@ -138,7 +140,7 @@ export var SceneSetup = /*#__PURE__*/ function() {
                         } // Already defaults to bright
                     },
                     vertexShader: "\n                varying vec2 vUv;\n                void main() {\n                    vUv = uv;\n                    gl_Position = vec4(position.xy, 1.0, 1.0); // Directly map to screen\n                }\n            ",
-                    fragmentShader: "\n                uniform float time;\n                uniform vec3 color1; // Top\n                uniform vec3 color2; // Bottom\n                uniform vec2 resolution;\n                uniform float brightnessFactor;\n                uniform float saturationFactor;\n                varying vec2 vUv;\n                // Function to convert RGB to HSL (approximation)\n                vec3 rgb2hsl(vec3 color) {\n                    float maxC = max(max(color.r, color.g), color.b);\n                    float minC = min(min(color.r, color.g), color.b);\n                    float l = (maxC + minC) / 2.0;\n                    float h = 0.0, s = 0.0;\n                    if (maxC != minC) {\n                        float d = maxC - minC;\n                        s = l > 0.5 ? d / (2.0 - maxC - minC) : d / (maxC + minC);\n                        if (maxC == color.r) h = (color.g - color.b) / d + (color.g < color.b ? 6.0 : 0.0);\n                        else if (maxC == color.g) h = (color.b - color.r) / d + 2.0;\n                        else h = (color.r - color.g) / d + 4.0;\n                        h /= 6.0;\n                    }\n                    return vec3(h, s, l);\n                }\n                // Function to convert HSL to RGB (approximation)\n                float hue2rgb(float p, float q, float t) {\n                    if (t < 0.0) t += 1.0;\n                    if (t > 1.0) t -= 1.0;\n                    if (t < 1.0/6.0) return p + (q - p) * 6.0 * t;\n                    if (t < 1.0/2.0) return q;\n                    if (t < 2.0/3.0) return p + (q - p) * (2.0/3.0 - t) * 6.0;\n                    return p;\n                }\n                vec3 hsl2rgb(vec3 hsl) {\n                    float h = hsl.x, s = hsl.y, l = hsl.z;\n                    float r, g, b;\n                    if (s == 0.0) {\n                        r = g = b = l; // achromatic\n                    } else {\n                        float q = l < 0.5 ? l * (1.0 + s) : l + s - l * s;\n                        float p = 2.0 * l - q;\n                        r = hue2rgb(p, q, h + 1.0/3.0);\n                        g = hue2rgb(p, q, h);\n                        b = hue2rgb(p, q, h - 1.0/3.0);\n                    }\n                    return vec3(r, g, b);\n                }\n                void main() {\n                    // Check for the explicit white mode condition first\n                    if (saturationFactor == 0.0 && brightnessFactor == 1.0) {\n                        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0); // Pure white\n                        return;\n                    }\n                    // Simple vertical gradient mixing with time-based offset\n                    float timeFactor = time * 0.05; // Gentle vertical movement speed\n                    float mixFactor = smoothstep(0.2, 0.8, vUv.y + sin(timeFactor + vUv.x * 2.0) * 0.1);\n                    vec3 mixedColor = mix(color1, color2, mixFactor); // Mix between top (color1) and bottom (color2)\n                    // Adjust saturation and brightness using HSL conversion\n                    vec3 hsl = rgb2hsl(mixedColor);\n                    hsl.y *= saturationFactor; // Apply saturation\n                    hsl.z *= brightnessFactor; // Apply brightness\n                    vec3 finalColor = hsl2rgb(hsl);\n                    gl_FragColor = vec4(clamp(finalColor, 0.0, 1.0), 1.0); // Clamp final color\n                }\n            ",
+                    fragmentShader: "\n                uniform float time;\n                uniform vec3 color1; // Top\n                uniform vec3 color2; // Bottom\n                uniform vec2 resolution;\n                uniform float brightnessFactor;\n                uniform float saturationFactor;\n                varying vec2 vUv;\n                // Function to convert RGB to HSL (approximation)\n                vec3 rgb2hsl(vec3 color) {\n                    float maxC = max(max(color.r, color.g), color.b);\n                    float minC = min(min(color.r, color.g), color.b);\n                    float l = (maxC + minC) / 2.0;\n                    float h = 0.0, s = 0.0;\n                    if (maxC != minC) {\n                        float d = maxC - minC;\n                        s = l > 0.5 ? d / (2.0 - maxC - minC) : d / (maxC + minC);\n                        if (maxC == color.r) h = (color.g - color.b) / d + (color.g < color.b ? 6.0 : 0.0);\n                        else if (maxC == color.g) h = (color.b - color.r) / d + 2.0;\n                        else h = (color.r - color.g) / d + 4.0;\n                        h /= 6.0;\n                    }\n                    return vec3(h, s, l);\n                }\n                // Function to convert HSL to RGB (approximation)\n                float hue2rgb(float p, float q, float t) {\n                    if (t < 0.0) t += 1.0;\n                    if (t > 1.0) t -= 1.0;\n                    if (t < 1.0/6.0) return p + (q - p) * 6.0 * t;\n                    if (t < 1.0/2.0) return q;\n                    if (t < 2.0/3.0) return p + (q - p) * (2.0/3.0 - t) * 6.0;\n                    return p;\n                }\n                vec3 hsl2rgb(vec3 hsl) {\n                    float h = hsl.x, s = hsl.y, l = hsl.z;\n                    float r, g, b;\n                    if (s == 0.0) {\n                        r = g = b = l; // achromatic\n                    } else {\n                        float q = l < 0.5 ? l * (1.0 + s) : l + s - l * s;\n                        float p = 2.0 * l - q;\n                        r = hue2rgb(p, q, h + 1.0/3.0);\n                        g = hue2rgb(p, q, h);\n                        b = hue2rgb(p, q, h - 1.0/3.0);\n                    }\n                    return vec3(r, g, b);\n                }\n                void main() {\n                    // Check for the explicit white mode condition first\n                    if (saturationFactor == 0.0 && brightnessFactor == 0.0) {\n                        gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); // Pure black\n                        return;\n                    }\n                    // Simple vertical gradient mixing with time-based offset\n                    float timeFactor = time * 0.05; // Gentle vertical movement speed\n                    float mixFactor = smoothstep(0.2, 0.8, vUv.y + sin(timeFactor + vUv.x * 2.0) * 0.1);\n                    vec3 mixedColor = mix(color1, color2, mixFactor); // Mix between top (color1) and bottom (color2)\n                    // Adjust saturation and brightness using HSL conversion\n                    vec3 hsl = rgb2hsl(mixedColor);\n                    hsl.y *= saturationFactor; // Apply saturation\n                    hsl.z *= brightnessFactor; // Apply brightness\n                    vec3 finalColor = hsl2rgb(hsl);\n                    gl_FragColor = vec4(clamp(finalColor, 0.0, 1.0), 1.0); // Clamp final color\n                }\n            ",
                     depthTest: false,
                     depthWrite: false
                 });
@@ -224,11 +226,29 @@ export var SceneSetup = /*#__PURE__*/ function() {
             }
         },
         {
-            key: "resetCamera",
-            value: function resetCamera() {
-                var distance = 20; // Adjust distance based on grid size
-                this.camera.position.set(0, -distance * 0.5, distance); // Position back and slightly up
-                this.camera.lookAt(0, 0, 0); // Look at the center of the grid
+            key: "adjustCameraToFitGrid",
+            value: function adjustCameraToFitGrid(uiHeight = 60) {
+                const gridWorldSize = (GRID_SIZE * CELL_SIZE) + ((GRID_SIZE - 1) * CELL_GAP);
+                // Padding reduced from 1.25 to 1.05 to make the grid appear ~20% larger
+                const padding = 1.05; 
+        
+                const fov = this.camera.fov * (Math.PI / 180);
+                const availableHeight = this.container.clientHeight - uiHeight;
+        
+                // Calculate the visible height in the world at a distance of 1
+                const visibleHeightAtDist1 = 2 * Math.tan(fov / 2);
+                const visibleWidthAtDist1 = visibleHeightAtDist1 * this.camera.aspect;
+        
+                // Calculate the distance required to fit the grid's width and height
+                const distanceForWidth = (gridWorldSize * padding) / visibleWidthAtDist1;
+                const distanceForHeight = (gridWorldSize * padding) / (visibleHeightAtDist1 * (availableHeight / this.container.clientHeight));
+        
+                // Use the greater of the two distances to ensure the grid fits on both axes
+                const distance = Math.max(distanceForWidth, distanceForHeight);
+        
+                // Re-introduce the 3/4 angle view
+                this.camera.position.set(0, -distance * 0.75, distance);
+                this.camera.lookAt(0, 0, 0);
                 this.camera.updateProjectionMatrix();
             }
         },
@@ -238,17 +258,18 @@ export var SceneSetup = /*#__PURE__*/ function() {
                 var width = this.container.clientWidth;
                 var height = this.container.clientHeight;
                 this.camera.aspect = width / height;
-                this.camera.updateProjectionMatrix();
+                
+                // Get the UI element to calculate its height for camera adjustment
+                const uiContainer = document.getElementById('uiContainer');
+                const uiHeight = uiContainer ? uiContainer.offsetHeight : 60; // Fallback height
+                this.adjustCameraToFitGrid(uiHeight);
+
                 this.renderer.setSize(width, height);
                 this.composer.setSize(width, height); // Update composer size too
                 // Update background shader resolution uniform
                 if (this.backgroundMaterial) {
                     this.backgroundMaterial.uniforms.resolution.value.set(width, height);
-                    this.backgroundMaterial.uniforms.resolution.value.set(width, height);
                 }
-            // Removed squiggle shader resolution update
-            // Optional: Update particle bounds on resize if necessary,
-            // though the current implementation adapts reasonably well.
             }
         },
         {
