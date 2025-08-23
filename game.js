@@ -26,7 +26,7 @@ import { Grid } from './grid.js';
 import { InputHandler } from './input.js';
 import { SceneSetup } from './sceneSetup.js';
 import { Tile } from './tile.js';
-import { TILE_COLORS, GRID_SIZE, TARGET_VALUE, CELL_GAP, getCellSize } from './constants.js';
+import { TILE_COLORS, GRID_SIZE, TARGET_VALUE, CELL_GAP, CELL_SIZE } from './constants.js';
 
 // --- Audio file paths ---
 const BACKGROUND_MUSIC_PATH = './background.mp3';
@@ -92,9 +92,8 @@ export var Game = /*#__PURE__*/ function() {
         this.container = container;
         this.ui = ui;
         this.loadedFont = loadedFont;
-        this.cellSize = getCellSize(container); // NEW: Store current cell size
         this.sceneSetup = new SceneSetup(container);
-        this.grid = new Grid(GRID_SIZE, this.sceneSetup.scene, this.loadedFont, this.cellSize); // NEW: Pass cellSize
+        this.grid = new Grid(GRID_SIZE, this.sceneSetup.scene, this.loadedFont);
         this.inputHandler = new InputHandler(container);
         this.score = 0;
         this.isMoving = false;
@@ -136,7 +135,7 @@ export var Game = /*#__PURE__*/ function() {
         }
 
         // Событие для восстановления музыки после фокуса/скрытия вкладки
-        this._wasMutedByVisibility = false;
+        this._wasMutedByVisibility = false; // Флаг, чтобы понимать, что пауза была из-за потери фокуса
 
         this.setupAudio();
         this.setupControls();
@@ -153,30 +152,11 @@ export var Game = /*#__PURE__*/ function() {
         // ИНИЦИАЛИЗАЦИЯ событий видимости вкладки
         this.initVisibilityEvents();
 
-        // --- Новый обработчик resize ---
-        window.addEventListener('resize', this.handleResize.bind(this), false);
-
         console.log("[Game.js] Game instance created.");
     }
     _create_class(Game, [
-        // --- Новый метод: адаптивная обработка ресайза ---
         {
-            key: "handleResize",
-            value: function handleResize() {
-                // 1. Пересчитываем актуальный cellSize
-                this.cellSize = getCellSize(this.container);
-                // 2. Обновляем размер клеток сетки и позиции тайлов
-                if (this.grid && typeof this.grid.updateCellSize === 'function') {
-                    this.grid.updateCellSize(this.cellSize);
-                }
-                // 3. Обновляем позицию камеры, чтобы сетка всегда была оптимального размера
-                if (this.sceneSetup && typeof this.sceneSetup.resetCamera === 'function') {
-                    this.sceneSetup.resetCamera(this.cellSize); // новый cellSize
-                }
-            }
-        },
-        // --- Метод для сериализации всей игровой ситуации ---
-        {
+            // --- Метод для сериализации всей игровой ситуации ---
             key: "getProgressObject",
             value: function getProgressObject() {
                 let gridState = [];
@@ -198,55 +178,71 @@ export var Game = /*#__PURE__*/ function() {
                     highestTileValue: this.highestTileValue,
                     gamesPlayed: this.gamesPlayed,
                     grid: gridState,
-                    lastSavedTime: new Date().toISOString()
+                    lastSavedTime: new Date().toISOString() // Добавляем временную метку для отладки
                 };
             }
         },
-        // --- Восстановление прогресса из объекта ---
         {
+            // --- Восстановление прогресса из объекта ---
             key: "restoreProgress",
             value: function restoreProgress(progressObj) {
                 console.log('[Game.js] Восстановление прогресса игры:', progressObj);
+                
+                // Проверяем наличие обязательных полей
                 if (!progressObj || !progressObj.grid || !Array.isArray(progressObj.grid)) {
                     console.error('[Game.js] Некорректный формат объекта прогресса');
                     return false;
                 }
+                
+                // Проверяем, что в grid есть хотя бы один кубик
                 if (progressObj.grid.length === 0) {
                     console.warn('[Game.js] В сохраненном прогрессе нет кубиков, считаем прогресс невалидным');
                     return false;
                 }
+                
+                // Восстанавливаем основные переменные
                 this.score = progressObj.score || 0;
                 this.highScore = progressObj.highScore || 0;
                 this.highestTileValue = progressObj.highestTileValue || 0;
                 this.gamesPlayed = progressObj.gamesPlayed || 0;
+                
                 this.ui.updateScore(this.score);
                 this.ui.updateHighScore(this.highScore);
                 this.ui.updateHighestTile(this.highestTileValue);
                 this.ui.updateGamesPlayed(this.gamesPlayed);
 
+                // Очищаем сетку перед восстановлением
                 this.grid.clear();
+                
+                // Восстанавливаем кубики
                 const tilesCount = progressObj.grid.length;
                 console.log(`[Game.js] Восстанавливаем ${tilesCount} кубиков на сетке`);
+                
                 let validTilesCount = 0;
                 progressObj.grid.forEach(tileData => {
                     if (tileData.x >= 0 && tileData.x < this.grid.size && 
                         tileData.y >= 0 && tileData.y < this.grid.size && 
                         tileData.value > 0) {
-                        // --- Передаем актуальный cellSize для адаптивного размера ---
-                        const tile = new Tile(tileData.value, tileData.x, tileData.y, this.loadedFont, this.cellSize);
+                        
+                        const tile = new Tile(tileData.value, tileData.x, tileData.y, this.loadedFont);
                         this.grid.cells[tileData.y][tileData.x] = tile;
                         tile.mesh.position.copy(this.grid.getCellPosition(tileData.x, tileData.y));
                         this.grid.gridGroup.add(tile.mesh);
+                        console.log(`[Game.js] Восстановлен кубик: x=${tileData.x}, y=${tileData.y}, value=${tileData.value}`);
                         validTilesCount++;
                     } else {
                         console.warn(`[Game.js] Пропущен некорректный кубик:`, tileData);
                     }
                 });
+                
+                // Проверяем, что хотя бы один кубик был успешно восстановлен
                 if (validTilesCount === 0) {
                     console.warn('[Game.js] Не удалось восстановить ни одного кубика, считаем прогресс невалидным');
-                    this.grid.clear();
+                    this.grid.clear(); // Очищаем сетку от возможных ошибочных кубиков
                     return false;
                 }
+                
+                // Проверяем состояние игры
                 if (this.grid.checkWinCondition(TARGET_VALUE)) {
                     this.gameState = 'won';
                     console.log('[Game.js] Восстановлено победное состояние игры');
@@ -257,16 +253,20 @@ export var Game = /*#__PURE__*/ function() {
                     this.gameState = 'playing';
                     console.log('[Game.js] Восстановлено активное состояние игры');
                 }
-                return true;
+                
+                return true; // Успешное восстановление
             }
         },
         {
+            // --- Парсинг JSON прогресса ---
             key: "parseProgress",
             value: function parseProgress(progressStr) {
                 console.log('[Game.js] Парсинг строки прогресса:', typeof progressStr === 'string' ? 'Строка JSON' : 'Объект');
+                
                 if (typeof progressStr === 'object' && progressStr !== null) {
-                    return progressStr;
+                    return progressStr; // Уже объект, не нужно парсить
                 }
+                
                 try {
                     const progressObj = JSON.parse(progressStr);
                     console.log('[Game.js] Успешно распарсили JSON прогресса');
@@ -278,16 +278,20 @@ export var Game = /*#__PURE__*/ function() {
             }
         },
         {
+            // --- Сохраняет прогресс в облако ---
             key: "saveProgress",
             value: function saveProgress() {
                 console.log('[Game.js] Запуск сохранения прогресса игры в облако');
+                
                 const progressObj = this.getProgressObject();
                 if (!progressObj || !progressObj.grid) {
                     console.error('[Game.js] Не удалось получить объект прогресса для сохранения');
                     return Promise.reject(new Error("Некорректный объект прогресса"));
                 }
+                
                 const tilesCount = progressObj.grid.length;
                 console.log(`[Game.js] Сохраняем прогресс с ${tilesCount} кубиками на сетке`);
+                
                 return CloudSaves.saveProgress(progressObj)
                     .then(() => {
                         console.log('[Game.js] Прогресс игры успешно сохранен в облако');
@@ -537,22 +541,27 @@ export var Game = /*#__PURE__*/ function() {
             key: "start",
             value: function start() {
                 console.log("[Game.js] Game start called.");
+                
                 // Проверяем, что прогресс валидный и в нем есть непустой массив кубиков
                 const hasValidProgress = this.progressRestored && this.progress && 
                                         this.progress.grid && 
                                         Array.isArray(this.progress.grid) && 
                                         this.progress.grid.length > 0;
+                
                 if (hasValidProgress) {
                     console.log("[Game.js] Игра стартует с восстановленным прогрессом:", 
                         `${this.progress.grid.length} кубиков на сетке`);
                 } else {
                     // Прогресс отсутствует или невалидный - создаем новую игровую сессию
                     console.log("[Game.js] Прогресс отсутствует или невалидный, начинаем новую игру");
+                    
                     this.gamesPlayed++;
                     this.saveStats();
                     this.ui.updateGamesPlayed(this.gamesPlayed);
+                    
                     // Очищаем сетку (на всякий случай)
                     this.grid.clear();
+                    
                     // Добавляем стартовые кубики
                     console.log("[Game.js] Добавляем стартовые кубики на сетку");
                     const tile1 = this.grid.addRandomTile();
@@ -561,20 +570,24 @@ export var Game = /*#__PURE__*/ function() {
                     } else {
                         console.error("[Game.js] Не удалось добавить первый кубик!");
                     }
+                    
                     const tile2 = this.grid.addRandomTile();
                     if (tile2) {
                         console.log(`[Game.js] Добавлен второй кубик: x=${tile2.x}, y=${tile2.y}, value=${tile2.value}`);
                     } else {
                         console.error("[Game.js] Не удалось добавить второй кубик!");
                     }
+                    
                     // Сбрасываем счет и состояние игры
                     this.score = 0;
                     this.updateScore(0);
                     this.gameState = 'playing';
                 }
+                
                 this.animate();
                 callGameStartWhenReady();
                 callGameplayStart();
+                
                 // Сохраняем текущее состояние игры
                 this.saveProgress().catch(e => {
                     console.error("[Game.js] Ошибка при сохранении начального состояния игры:", e);
@@ -595,17 +608,19 @@ export var Game = /*#__PURE__*/ function() {
                 this.animations = [];
                 this.gameState = 'playing';
                 this.ui.hideMessage();
+                
                 // Добавляем стартовые кубики
                 const tile1 = this.grid.addRandomTile();
                 if (tile1) {
                     console.log(`[Game.js] Reset: добавлен первый кубик: x=${tile1.x}, y=${tile1.y}, value=${tile1.value}`);
                 }
+                
                 const tile2 = this.grid.addRandomTile();
                 if (tile2) {
                     console.log(`[Game.js] Reset: добавлен второй кубик: x=${tile2.x}, y=${tile2.y}, value=${tile2.value}`);
                 }
-                // --- Передаем актуальный cellSize в resetCamera ---
-                this.sceneSetup.resetCamera(this.cellSize);
+                
+                this.sceneSetup.resetCamera();
                 clearTimeout(this.fadeTimeout);
                 if (this.backgroundMusic && this.backgroundMusic.isPlaying) {
                     this.backgroundMusic.stop();
@@ -617,6 +632,7 @@ export var Game = /*#__PURE__*/ function() {
                 }
                 this.ui.updateMusicButtonText(this.musicPlaying);
                 callGameplayStart();
+                
                 // Сохраняем новый прогресс (пустую сетку с двумя начальными тайлами)
                 this.saveProgress().catch(e => {
                     console.error("[Game.js] Ошибка при сохранении прогресса после сброса:", e);
@@ -771,7 +787,7 @@ export var Game = /*#__PURE__*/ function() {
                                 duration: WOBBLE_DURATION,
                                 direction: wobbleVec.clone(),
                                 originalPos: tile.mesh.position.clone(),
-                                magnitude: WOBBLE_MAGNITUDE * this.cellSize // NEW: Use actual cellSize
+                                magnitude: WOBBLE_MAGNITUDE * CELL_SIZE
                             });
                         }
                     }
