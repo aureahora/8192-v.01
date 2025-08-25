@@ -1,3 +1,5 @@
+import { translations, getUserLanguage } from './localization.js';
+
 function _class_call_check(instance, Constructor) {
     if (!(instance instanceof Constructor)) {
         throw new TypeError("Cannot call a class as a function");
@@ -19,11 +21,16 @@ function _create_class(Constructor, protoProps, staticProps) {
 }
 export var UI = /*#__PURE__*/ function() {
     "use strict";
-    function UI(container) {
+    function UI(container, providedTranslations) {
         var _this = this;
         _class_call_check(this, UI);
         this.container = container;
-        
+
+        // Определяем язык
+        const lang = getUserLanguage();
+        // Если передан объект переводов — используем его, иначе fallback на глобальный translations
+        this.t = providedTranslations || translations[lang] || translations['en'];
+
         this.uiContainer = document.createElement('div');
         this.uiContainer.id = 'uiContainer';
         this.uiContainer.style.position = 'absolute';
@@ -43,21 +50,21 @@ export var UI = /*#__PURE__*/ function() {
         // Score Display
         this.scoreElement = document.createElement('div');
         this.scoreElement.id = 'score';
-        this.scoreElement.textContent = 'Score: 0';
+        this.scoreElement.textContent = `${this.t.score}: 0`;
         this.scoreElement.style.fontWeight = 'bold';
 
         // Stats Displays
         this.highScoreElement = document.createElement('div');
         this.highScoreElement.id = 'highScore';
-        this.highScoreElement.textContent = 'Best: 0';
+        this.highScoreElement.textContent = `${this.t.best}: 0`;
         
         this.highestTileElement = document.createElement('div');
         this.highestTileElement.id = 'highestTile';
-        this.highestTileElement.textContent = 'Max Tile: 0';
+        this.highestTileElement.textContent = `${this.t.maxTile}: 0`;
         
         this.gamesPlayedElement = document.createElement('div');
         this.gamesPlayedElement.id = 'gamesPlayed';
-        this.gamesPlayedElement.textContent = 'Games: 0';
+        this.gamesPlayedElement.textContent = `${this.t.games}: 0`;
 
         // Left side container (Score + Stats)
         this.infoContainer = document.createElement('div');
@@ -85,11 +92,11 @@ export var UI = /*#__PURE__*/ function() {
         this.buttonsContainer.style.gap = '8px';
 
         // Reset Button using helper
-        this.resetButton = this._createButton('resetButton', 'Reset', '#ff8c00');
+        this.resetButton = this._createButton('resetButton', this.t.reset, '#ff8c00');
         // Glow Toggle Button using helper
-        this.toggleGlowButton = this._createButton('toggleGlowButton', 'Glow', '#007bff'); // Initial blue
+        this.toggleGlowButton = this._createButton('toggleGlowButton', this.t.glow, '#007bff'); // Initial blue
         // Music Toggle Button using helper
-        this.toggleMusicButton = this._createButton('toggleMusicButton', 'Music', '#6c757d'); // Initial grey
+        this.toggleMusicButton = this._createButton('toggleMusicButton', this.t.music, '#6c757d'); // Initial grey
         
         this.buttonsContainer.appendChild(this.resetButton);
         this.buttonsContainer.appendChild(this.toggleGlowButton);
@@ -115,29 +122,6 @@ export var UI = /*#__PURE__*/ function() {
         this.uiContainer.appendChild(this.buttonsContainer);
         this.container.appendChild(this.uiContainer);
         this.container.appendChild(this.messageElement);
-
-        // --- Credit Box ---
-        this.creditBox = document.createElement('div');
-        this.creditBox.id = 'creditBox';
-        this.creditBox.style.position = 'absolute';
-        this.creditBox.style.bottom = '10px';
-        this.creditBox.style.left = '10px';
-        this.creditBox.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-        this.creditBox.style.padding = '5px 10px';
-        this.creditBox.style.borderRadius = '5px';
-        this.creditBox.style.fontSize = '10px';
-        this.creditBox.style.fontFamily = "'Inter', sans-serif";
-        this.creditBox.style.color = '#ccc';
-        this.creditBox.style.zIndex = '90';
-        var creditLink = document.createElement('a');
-        creditLink.target = '_blank';
-        creditLink.rel = 'noopener noreferrer';
-        creditLink.style.color = '#fff';
-        creditLink.style.textDecoration = 'none';
-        creditLink.onmouseover = function() { creditLink.style.textDecoration = 'underline'; };
-        creditLink.onmouseout = function() { creditLink.style.textDecoration = 'none'; };
-        this.creditBox.appendChild(creditLink);
-        this.container.appendChild(this.creditBox);
 
         // Adjust positioning for mobile
         this.adjustLayout();
@@ -225,25 +209,25 @@ export var UI = /*#__PURE__*/ function() {
         {
             key: "updateScore",
             value: function updateScore(score) {
-                this.scoreElement.textContent = "Score: ".concat(score);
+                this.scoreElement.textContent = `${this.t.score}: ${score}`;
             }
         },
         {
             key: "updateHighScore",
             value: function updateHighScore(highScore) {
-                this.highScoreElement.textContent = "Best: ".concat(highScore);
+                this.highScoreElement.textContent = `${this.t.best}: ${highScore}`;
             }
         },
         {
             key: "updateHighestTile",
             value: function updateHighestTile(tileValue) {
-                this.highestTileElement.textContent = "Max Tile: ".concat(tileValue);
+                this.highestTileElement.textContent = `${this.t.maxTile}: ${tileValue}`;
             }
         },
         {
             key: "updateGamesPlayed",
             value: function updateGamesPlayed(count) {
-                this.gamesPlayedElement.textContent = "Games: ".concat(count);
+                this.gamesPlayedElement.textContent = `${this.t.games}: ${count}`;
             }
         },
         {
@@ -267,14 +251,14 @@ export var UI = /*#__PURE__*/ function() {
         {
             key: "updateGlowButtonText",
             value: function updateGlowButtonText(isBright) {
-                this.toggleGlowButton.textContent = 'Glow'; // Keep text constant
+                this.toggleGlowButton.textContent = this.t.glow;
                 this.toggleGlowButton.style.backgroundColor = isBright ? '#007bff' : '#4a5568';
             }
         },
         {
             key: "updateMusicButtonText",
             value: function updateMusicButtonText(isPlaying) {
-                this.toggleMusicButton.textContent = 'Music'; // Keep text constant
+                this.toggleMusicButton.textContent = this.t.music;
                 this.toggleMusicButton.style.backgroundColor = isPlaying ? '#28a745' : '#6c757d';
             }
         },

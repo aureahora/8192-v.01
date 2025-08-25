@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html style="width: 100%; height: 100%;">
     <head>
@@ -44,23 +43,20 @@
         <script src="ImageGenerator.js"></script>
         <script src="https://storage.googleapis.com/canvas-scripts/three-js/cannon.min.js"></script>
         <script type="module" src="main.js"></script>
-    <!-- Вставьте этот код вручную перед </body> -->
-    <script async src="https://gamepush.com/sdk/game-score.js?projectId=23554&publicToken=1dlGniUkxz0LqyFeFCbpWPn2xJ2T6R9J&callback=onGPInit"></script>
-    <script>
-    window.onGPInit = async (gp) => {
-      console.log("HTML: onGPInit сработал, SDK получен.");
-      
-      // --- ГЛАВНОЕ ИЗМЕНЕНИЕ ---
-      // Просто сохраняем готовый SDK в глобальный объект, чтобы игра его нашла.
-      window.gamePushSDK = gp;
-    
-      // Остальная логика из документации
-      await gp.player.ready;
-      await gp.ads.showPreloader();
-      gp.ads.showSticky();
-    
-      console.log("HTML: Инициализация GamePush завершена.");
-    };
-    </script>
+        <script async src="https://gamepush.com/sdk/game-score.js?projectId=23554&publicToken=1dlGniUkxz0LqyFeFCbpWPn2xJ2T6R9J&callback=onGPInit"></script>
+        <script>
+        window.onGPInit = async (gp) => {
+            console.log("HTML: onGPInit сработал, SDK получен.");
+            window.gamePushSDK = gp;
+            await gp.player.ready;
+            await gp.ads.showPreloader();
+            gp.ads.showSticky();
+            console.log("HTML: Инициализация GamePush завершена.");
+            // --- ЗАПУСКАЕМ ИГРУ ПОСЛЕ ИНИЦИАЛИЗАЦИИ SDK ---
+            if (window.startGameAfterSDK) {
+                window.startGameAfterSDK();
+            }
+        };
+        </script>
     </body>
 </html>

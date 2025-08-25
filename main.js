@@ -4,15 +4,14 @@ import { Game } from './game.js';
 import { UI } from './ui.js';
 import { FONT_JSON_URL } from './constants.js';
 import { CloudSaves } from './cloudSaves.js'; // CloudSaves integration
+import { translations, getUserLanguage } from './localization.js';
 
 // --- [SOUND SDK INTEGRATION & LOGGING] ---
-// Helper for GamePush sound events & visibility/focus events
 function initSoundSDKIntegration(game) {
     if (!window.gamePushSDK || !game) {
         console.warn("[main.js] GamePush SDK not found, sound integration skipped.");
         return;
     }
-    // ВЫКЛЮЧИЛИ ВСЕ ЗВУКИ
     window.gamePushSDK.sounds.on('mute', () => {
         console.log('[Sound SDK] mute: Отключаем все звуки (музыка и эффекты).');
         if (game.backgroundMusic && game.backgroundMusic.isPlaying) game.backgroundMusic.pause();
@@ -21,20 +20,17 @@ function initSoundSDKIntegration(game) {
         if (game.tapSound && game.tapSound.isPlaying) game.tapSound.pause();
         if (game.mergeSound && game.mergeSound.isPlaying) game.mergeSound.pause();
     });
-    // ВЫКЛЮЧИЛИ только музыку
     window.gamePushSDK.sounds.on('mute:music', () => {
         console.log('[Sound SDK] mute:music: Отключаем только музыку.');
         if (game.backgroundMusic && game.backgroundMusic.isPlaying) game.backgroundMusic.pause();
         game.musicPlaying = false;
         game.ui.updateMusicButtonText(false);
     });
-    // ВЫКЛЮЧИЛИ только эффекты
     window.gamePushSDK.sounds.on('mute:sfx', () => {
         console.log('[Sound SDK] mute:sfx: Отключаем только эффекты.');
         if (game.tapSound && game.tapSound.isPlaying) game.tapSound.pause();
         if (game.mergeSound && game.mergeSound.isPlaying) game.mergeSound.pause();
     });
-    // ВКЛЮЧИЛИ ВСЕ ЗВУКИ
     window.gamePushSDK.sounds.on('unmute', () => {
         console.log('[Sound SDK] unmute: Включаем все звуки (музыка и эффекты).');
         if (game.backgroundMusic && !window.gamePushSDK.sounds.isMusicMuted) {
@@ -43,7 +39,6 @@ function initSoundSDKIntegration(game) {
             game.ui.updateMusicButtonText(true);
         }
     });
-    // ВКЛЮЧИЛИ только музыку
     window.gamePushSDK.sounds.on('unmute:music', () => {
         console.log('[Sound SDK] unmute:music: Включаем только музыку.');
         if (game.backgroundMusic && !window.gamePushSDK.sounds.isMusicMuted) {
@@ -52,12 +47,9 @@ function initSoundSDKIntegration(game) {
             game.ui.updateMusicButtonText(true);
         }
     });
-    // ВКЛЮЧИЛИ только эффекты
     window.gamePushSDK.sounds.on('unmute:sfx', () => {
         console.log('[Sound SDK] unmute:sfx: Включаем только эффекты.');
-        // В этой реализации эффекты проигрываются по событию, ничего не делаем
     });
-    // Логируем текущее состояние звука при старте
     console.log('[Sound SDK] Initial states:',
         'isMuted:', window.gamePushSDK.sounds.isMuted,
         'isMusicMuted:', window.gamePushSDK.sounds.isMusicMuted,
@@ -104,136 +96,120 @@ function initVisibilityEvents(game) {
     });
 }
 
-var renderDiv = document.getElementById('renderDiv');
+async function startGameAfterSDK() {
+    const renderDiv = document.getElementById('renderDiv');
+    if (!renderDiv) {
+        console.error("[main.js] Error: 'renderDiv' element not found in the DOM.");
+        return;
+    }
 
-if (renderDiv) {
-    // --- CloudSaves: загрузка облака перед стартом ---
-    (async () => {
-        var setupGameListeners = function setupGameListeners(ui, game) {
-            // Reset listener
-            ui.setResetCallback(function() {
-                return game.reset();
-            });
-            // Glow toggle listener
-            ui.setGlowToggleCallback(async function() {
-                game.isGlowBright = !game.isGlowBright;
-                game.sceneSetup.setGlowMode(game.isGlowBright);
-                ui.updateGlowButtonText(game.isGlowBright);
-                try {
-                    await CloudSaves.save('glow', game.isGlowBright ? 0 : 1); // Cloud sync
-                    console.log('[main.js] Glow value saved to cloud:', game.isGlowBright ? 0 : 1);
-                } catch (e) {
-                    console.error('[main.js] Error saving glow to cloud:', e);
-                }
-            });
-            // Music toggle listener — теперь через SDK!
-            ui.setMusicToggleCallback(function() {
-                // Новое управление через SDK!
-                if (window.gamePushSDK) {
-                    if (window.gamePushSDK.sounds.isMusicMuted) {
-                        window.gamePushSDK.sounds.unmuteMusic();
-                        console.log("[main.js] Music button: Включить музыку через SDK.");
-                    } else {
-                        window.gamePushSDK.sounds.muteMusic();
-                        console.log("[main.js] Music button: Отключить музыку через SDK.");
-                    }
-                } else {
-                    // fallback (локально)
-                    game.toggleMusic();
-                }
-            });
-        };
-
-        renderDiv.style.position = 'fixed';
-        renderDiv.style.top = '0';
-        renderDiv.style.left = '0';
-        renderDiv.style.width = '100%';
-        renderDiv.style.height = '100%';
-        renderDiv.style.margin = '0';
-        renderDiv.style.overflow = 'hidden'; // Prevent scrollbars
-        var ui = new UI(document.body);
-        var fontLoader = new FontLoader();
-        fontLoader.load(FONT_JSON_URL, async function(loadedFont) {
-            console.log("[main.js] Font loaded successfully.");
-            // --- CloudSaves: ждем SDK и облако ---
-            let cloudStats = null;
-            try {
-                console.log('[main.js] Ожидание инициализации GamePush SDK...');
-                let attempts = 0;
-                while (!window.gamePushSDK && attempts < 50) {
-                    await new Promise(res => setTimeout(res, 100));
-                    attempts++;
-                }
-                
-                if (window.gamePushSDK) {
-                    console.log('[main.js] GamePush SDK инициализирован, загружаем данные из облака...');
-                    cloudStats = await CloudSaves.loadAll();
-                    
-                    // Логируем загруженные данные для отладки
-                    console.log('[main.js] Загружены данные из облака:', cloudStats);
-                    
-                    // Проверяем, есть ли прогресс игры
-                    if (cloudStats.progress) {
-                        console.log('[main.js] Найден сохраненный прогресс игры в облаке');
-                        
-                        // Если progress - строка, пробуем распарсить JSON
-                        if (typeof cloudStats.progress === 'string') {
-                            try {
-                                const progressObj = JSON.parse(cloudStats.progress);
-                                console.log('[main.js] Прогресс игры успешно распарсен:', 
-                                    `Счет: ${progressObj.score}`, 
-                                    `Кубиков: ${progressObj.grid?.length || 0}`);
-                            } catch (e) {
-                                console.error('[main.js] Ошибка при парсинге прогресса:', e);
-                            }
-                        } else if (typeof cloudStats.progress === 'object') {
-                            console.log('[main.js] Прогресс игры получен как объект:', 
-                                `Счет: ${cloudStats.progress.score}`, 
-                                `Кубиков: ${cloudStats.progress.grid?.length || 0}`);
-                        }
-                    } else {
-                        console.log('[main.js] Сохраненный прогресс игры не найден в облаке');
-                    }
-                } else {
-                    console.warn('[main.js] GamePush SDK не инициализирован после ожидания');
-                }
-            } catch (e) {
-                console.warn('[main.js] Не удалось загрузить облачные сохранения:', e);
-            }
-            
-            // Game instance, cloud stats передаем
-            console.log('[main.js] Создание экземпляра игры с данными из облака');
-            var game = new Game(renderDiv, ui, loadedFont, cloudStats);
-
-            // --- Звуковая интеграция ---
-            initSoundSDKIntegration(game);
-            initVisibilityEvents(game);
-
-            setupGameListeners(ui, game);
-            // Log before starting game
-            console.log('[main.js] Starting game...');
-            try {
-                await game.start();
-                console.log('[main.js] Game started.');
-                
-                // При первом запуске сохраняем начальное состояние игры
-                if (!cloudStats?.progress) {
-                    console.log('[main.js] Сохраняем начальное состояние игры в облако');
-                    try {
-                        await game.saveProgress();
-                        console.log('[main.js] Начальное состояние игры успешно сохранено в облако');
-                    } catch (err) {
-                        console.error('[main.js] Ошибка при сохранении начального состояния игры:', err);
-                    }
-                }
-            } catch (err) {
-                console.error('[main.js] Error starting game:', err);
-            }
-        }, undefined, function(error) {
-            console.error('[main.js] Font loading failed:', error);
-            ui.showMessage('Error: Could not load font. Please refresh.');
+    var setupGameListeners = function setupGameListeners(ui, game) {
+        ui.setResetCallback(function() {
+            return game.reset();
         });
-    })();
-} else {
-    console.error("[main.js] Error: 'renderDiv' element not found in the DOM.");
+        ui.setGlowToggleCallback(async function() {
+            game.isGlowBright = !game.isGlowBright;
+            game.sceneSetup.setGlowMode(game.isGlowBright);
+            ui.updateGlowButtonText(game.isGlowBright);
+            try {
+                await CloudSaves.save('glow', game.isGlowBright ? 0 : 1);
+                console.log('[main.js] Glow value saved to cloud:', game.isGlowBright ? 0 : 1);
+            } catch (e) {
+                console.error('[main.js] Error saving glow to cloud:', e);
+            }
+        });
+        ui.setMusicToggleCallback(function() {
+            if (window.gamePushSDK) {
+                if (window.gamePushSDK.sounds.isMusicMuted) {
+                    window.gamePushSDK.sounds.unmuteMusic();
+                    console.log("[main.js] Music button: Включить музыку через SDK.");
+                } else {
+                    window.gamePushSDK.sounds.muteMusic();
+                    console.log("[main.js] Music button: Отключить музыку через SDK.");
+                }
+            } else {
+                game.toggleMusic();
+            }
+        });
+    };
+
+    renderDiv.style.position = 'fixed';
+    renderDiv.style.top = '0';
+    renderDiv.style.left = '0';
+    renderDiv.style.width = '100%';
+    renderDiv.style.height = '100%';
+    renderDiv.style.margin = '0';
+    renderDiv.style.overflow = 'hidden';
+
+    // --- ЛОКАЛИЗАЦИЯ ---
+    const lang = getUserLanguage();
+    const t = translations[lang];
+    var ui = new UI(document.body, t);
+
+    var fontLoader = new FontLoader();
+    fontLoader.load(FONT_JSON_URL, async function(loadedFont) {
+        console.log("[main.js] Font loaded successfully.");
+        let cloudStats = null;
+        try {
+            if (window.gamePushSDK) {
+                console.log('[main.js] GamePush SDK инициализирован, загружаем данные из облака...');
+                cloudStats = await CloudSaves.loadAll();
+                console.log('[main.js] Загружены данные из облака:', cloudStats);
+                if (cloudStats.progress) {
+                    console.log('[main.js] Найден сохраненный прогресс игры в облаке');
+                    if (typeof cloudStats.progress === 'string') {
+                        try {
+                            const progressObj = JSON.parse(cloudStats.progress);
+                            console.log('[main.js] Прогресс игры успешно распарсен:',
+                                `Счет: ${progressObj.score}`,
+                                `Кубиков: ${progressObj.grid?.length || 0}`);
+                        } catch (e) {
+                            console.error('[main.js] Ошибка при парсинге прогресса:', e);
+                        }
+                    } else if (typeof cloudStats.progress === 'object') {
+                        console.log('[main.js] Прогресс игры получен как объект:',
+                            `Счет: ${cloudStats.progress.score}`,
+                            `Кубиков: ${cloudStats.progress.grid?.length || 0}`);
+                    }
+                } else {
+                    console.log('[main.js] Сохраненный прогресс игры не найден в облаке');
+                }
+            } else {
+                console.warn('[main.js] GamePush SDK не инициализирован (ожидание onGPInit)');
+            }
+        } catch (e) {
+            console.warn('[main.js] Не удалось загрузить облачные сохранения:', e);
+        }
+
+        console.log('[main.js] Создание экземпляра игры с данными из облака');
+        var game = new Game(renderDiv, ui, loadedFont, cloudStats);
+
+        initSoundSDKIntegration(game);
+        initVisibilityEvents(game);
+
+        setupGameListeners(ui, game);
+        console.log('[main.js] Starting game...');
+        try {
+            await game.start();
+            console.log('[main.js] Game started.');
+
+            if (!cloudStats?.progress) {
+                console.log('[main.js] Сохраняем начальное состояние игры в облако');
+                try {
+                    await game.saveProgress();
+                    console.log('[main.js] Начальное состояние игры успешно сохранено в облако');
+                } catch (err) {
+                    console.error('[main.js] Ошибка при сохранении начального состояния игры:', err);
+                }
+            }
+        } catch (err) {
+            console.error('[main.js] Error starting game:', err);
+        }
+    }, undefined, function(error) {
+        console.error('[main.js] Font loading failed:', error);
+        ui.showMessage('Error: Could not load font. Please refresh.');
+    });
 }
+
+// Делаем функцию глобальной для вызова из index.html
+window.startGameAfterSDK = startGameAfterSDK;
