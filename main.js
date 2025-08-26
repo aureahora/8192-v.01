@@ -234,6 +234,24 @@ async function startGameAfterSDK() {
                     isFirstMenu = false;
                 } else {
                     // Продолжаем игру (можно добавить логику паузы/возврата)
+                    // --- ПОКАЗ РЕКЛАМЫ ПЕРЕД ПРОДОЛЖЕНИЕМ ---
+                    if (window.gamePushSDK && window.gamePushSDK.ads && typeof window.gamePushSDK.ads.showFullscreen === 'function') {
+                        // Показываем fullscreen рекламу
+                        window.gamePushSDK.ads.showFullscreen()
+                            .then(() => {
+                                // После успешного показа рекламы, продолжаем игру
+                                game.start();
+                            })
+                            .catch((err) => {
+                                // Если реклама не была показана (ошибка), всё равно продолжаем игру
+                                console.warn('[main.js] Ошибка показа рекламы, продолжаем игру:', err);
+                                game.start();
+                            });
+                        // Можно также слушать событие, но промис — более надёжно для синхронизации
+                    } else {
+                        // Если SDK или метод недоступен, просто продолжаем игру
+                        game.start();
+                    }
                 }
             });
         }
