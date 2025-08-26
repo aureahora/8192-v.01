@@ -28,7 +28,6 @@ export var UI = /*#__PURE__*/ function() {
 
         // Определяем язык
         const lang = getUserLanguage();
-        // Если передан объект переводов — используем его, иначе fallback на глобальный translations
         this.t = providedTranslations || translations[lang] || translations['en'];
 
         this.uiContainer = document.createElement('div');
@@ -107,9 +106,9 @@ export var UI = /*#__PURE__*/ function() {
         // Reset Button using helper
         this.resetButton = this._createButton('resetButton', this.t.reset, '#ff8c00');
         // Glow Toggle Button using helper
-        this.toggleGlowButton = this._createButton('toggleGlowButton', this.t.glow, '#007bff'); // Initial blue
+        this.toggleGlowButton = this._createButton('toggleGlowButton', this.t.glow, '#007bff');
         // Music Toggle Button using helper
-        this.toggleMusicButton = this._createButton('toggleMusicButton', this.t.music, '#6c757d'); // Initial grey
+        this.toggleMusicButton = this._createButton('toggleMusicButton', this.t.music, '#6c757d');
         
         // --- Add buttons in desired order: Menu, Reset, Glow, Music ---
         this.buttonsContainer.appendChild(this.menuButton);
@@ -157,6 +156,10 @@ export var UI = /*#__PURE__*/ function() {
                 button.style.color = 'white';
                 button.style.cursor = 'pointer';
                 button.style.transition = 'background-color 0.25s cubic-bezier(.4,0,.2,1)';
+                // Размер шрифта и высота будут одинаковыми для всех, но для Menu и Glow — абсолютно одинаково!
+                button.style.fontSize = '14px';
+                button.style.padding = '8px 12px';
+                button.style.height = '36px'; // Явно задаём высоту, чтобы совпадала с Glow (если Glow вдруг поменяется)
                 return button;
             }
         },
@@ -165,6 +168,9 @@ export var UI = /*#__PURE__*/ function() {
             value: function adjustLayout() {
                 const screenWidth = window.innerWidth;
                 const isMobile = screenWidth <= 768;
+
+                // Стиль кнопок Glow и Menu всегда совпадает!
+                const btnStyle = { fontSize: '14px', padding: '8px 12px', height: '36px' };
 
                 if (isMobile) {
                     // Mobile styles
@@ -185,10 +191,9 @@ export var UI = /*#__PURE__*/ function() {
                     this.highestTileElement.style.fontSize = statsFontSize;
                     this.gamesPlayedElement.style.fontSize = statsFontSize;
 
-                    const btnStyle = { fontSize: '14px', padding: '8px 12px' };
                     Object.assign(this.menuButton.style, btnStyle);
-                    Object.assign(this.resetButton.style, btnStyle);
                     Object.assign(this.toggleGlowButton.style, btnStyle);
+                    Object.assign(this.resetButton.style, btnStyle);
                     Object.assign(this.toggleMusicButton.style, btnStyle);
 
                     this.messageElement.style.width = '85%';
@@ -213,10 +218,9 @@ export var UI = /*#__PURE__*/ function() {
                     this.highestTileElement.style.fontSize = statsFontSize;
                     this.gamesPlayedElement.style.fontSize = statsFontSize;
 
-                    const btnStyle = { fontSize: '14px', padding: '8px 12px' };
                     Object.assign(this.menuButton.style, btnStyle);
-                    Object.assign(this.resetButton.style, btnStyle);
                     Object.assign(this.toggleGlowButton.style, btnStyle);
+                    Object.assign(this.resetButton.style, btnStyle);
                     Object.assign(this.toggleMusicButton.style, btnStyle);
                     
                     this.messageElement.style.width = 'auto';
