@@ -181,10 +181,11 @@ async function startGameAfterSDK() {
             // --- Новая кнопка Save на игровом поле ---
             ui.setSaveCallback(async function() {
                 try {
+                    await game.saveStats();
                     await game.saveProgress();
-                    console.log('[main.js] Save button: Прогресс игры сохранен!');
+                    console.log('[main.js] Save button: Статистика и прогресс сохранены!');
                 } catch (e) {
-                    console.error('[main.js] Save button: Ошибка при сохранении прогресса!', e);
+                    console.error('[main.js] Save button: Ошибка при сохранении!', e);
                 }
             });
 
