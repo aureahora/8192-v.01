@@ -184,8 +184,10 @@ async function startGameAfterSDK() {
                     await game.saveStats();
                     await game.saveProgress();
                     console.log('[main.js] Save button: Статистика и прогресс сохранены!');
+                    return true;
                 } catch (e) {
                     console.error('[main.js] Save button: Ошибка при сохранении!', e);
+                    return false;
                 }
             });
 
@@ -199,9 +201,7 @@ async function startGameAfterSDK() {
                 game.isGlowBright = !game.isGlowBright;
                 game.sceneSetup.setGlowMode(game.isGlowBright);
                 uiUpdateGlowMenu(game, game.isGlowBright);
-                CloudSaves.save('glow', game.isGlowBright ? 0 : 1)
-                    .then(() => console.log('[main.js] Glow value saved to cloud:', game.isGlowBright ? 0 : 1))
-                    .catch(e => console.error('[main.js] Error saving glow to cloud:', e));
+                // Удалено сохранение в облако при нажатии кнопки "Сияние"
                 return game.isGlowBright;
             });
 
@@ -221,9 +221,7 @@ async function startGameAfterSDK() {
                     game.toggleMusic();
                 }
                 uiUpdateMusicMenu(game, game.musicPlaying);
-                CloudSaves.save('music', game.musicPlaying ? 1 : 0)
-                    .then(() => console.log('[main.js] Music value saved to cloud:', game.musicPlaying ? 1 : 0))
-                    .catch(e => console.error('[main.js] Error saving music to cloud:', e));
+                // Удалено сохранение в облако при нажатии кнопки "Музыка"
                 return game.musicPlaying;
             });
 

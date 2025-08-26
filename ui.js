@@ -360,11 +360,32 @@ export var UI = /*#__PURE__*/ function() {
             key: "setSaveCallback",
             value: function setSaveCallback(callback) {
                 this.saveButton.onclick = async () => {
+                    // Меняем цвет на серый во время сохранения
                     this.saveButton.style.backgroundColor = '#6c757d';
-                    await callback();
-                    setTimeout(() => {
+                    this.saveButton.textContent = 'Saving...';
+                    
+                    try {
+                        await callback();
+                        
+                        // Показываем успех
                         this.saveButton.style.backgroundColor = '#28a745';
-                    }, 600);
+                        this.saveButton.textContent = 'Saved!';
+                        
+                        // Возвращаем исходный текст через 2 секунды
+                        setTimeout(() => {
+                            this.saveButton.textContent = 'Save';
+                        }, 2000);
+                    } catch (e) {
+                        // Показываем ошибку
+                        this.saveButton.style.backgroundColor = '#dc3545';
+                        this.saveButton.textContent = 'Error!';
+                        
+                        // Возвращаем исходный текст и цвет через 2 секунды
+                        setTimeout(() => {
+                            this.saveButton.style.backgroundColor = '#28a745';
+                            this.saveButton.textContent = 'Save';
+                        }, 2000);
+                    }
                 };
             }
         },

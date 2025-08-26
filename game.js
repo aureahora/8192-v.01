@@ -187,26 +187,115 @@ export var Game = /*#__PURE__*/ function() {
             // --- Восстановление прогресса из объекта ---
             key: "restoreProgress",
             value: function restoreProgress(progressObj) {
-                // ... (оставляем как есть, без изменений)
-                // см. исходный файл, полностью совпадает
-                // (можно оставить этот метод без изменений)
-                // ...
-                // [код оставлен из вашего исходника, не дублирую для краткости]
-                // ...
+                if (!progressObj || !progressObj.grid || !Array.isArray(progressObj.grid)) {
+                    console.error('[Game.js] Невозможно восстановить прогресс: данные отсутствуют или имеют неверный формат.');
+                    return false;
+                }
+
+                try {
+                    // Очищаем сетку
+                    this.grid.clear();
+                    
+                    // Восстанавливаем состояние игрового поля
+                    for (let i = 0; i < progressObj.grid.length; i++) {
+                        const tileData = progressObj.grid[i];
+                        if (tileData && typeof tileData.x === 'number' && 
+                            typeof tileData.y === 'number' && 
+                            typeof tileData.value === 'number') {
+                            
+                            // Создаем новый тайл с сохраненным значением и позицией
+                            const tile = new Tile(tileData.value, tileData.x, tileData.y, this.loadedFont);
+                            
+                            // Добавляем тайл на сетку
+                            this.grid.cells[tileData.y][tileData.x] = tile;
+                            
+                            // Устанавливаем позицию в 3D пространстве
+                            const position = this.grid.getCellPosition(tileData.x, tileData.y);
+                            tile.mesh.position.copy(position);
+                            
+                            // Добавляем меш тайла на сцену
+                            this.grid.gridGroup.add(tile.mesh);
+                        }
+                    }
+                    
+                    // Восстанавливаем счет и статистику
+                    this.score = progressObj.score || 0;
+                    if (progressObj.highScore && progressObj.highScore > this.highScore) {
+                        this.highScore = progressObj.highScore;
+                    }
+                    if (progressObj.highestTileValue && progressObj.highestTileValue > this.highestTileValue) {
+                        this.highestTileValue = progressObj.highestTileValue;
+                    }
+                    if (progressObj.gamesPlayed) {
+                        this.gamesPlayed = progressObj.gamesPlayed;
+                    }
+                    
+                    console.log('[Game.js] Восстановлено', progressObj.grid.length, 'тайлов, счет:', this.score);
+                    return true;
+                } catch (error) {
+                    console.error('[Game.js] Ошибка при восстановлении прогресса:', error);
+                    return false;
+                }
             }
         },
         {
             // --- Парсинг JSON прогресса ---
             key: "parseProgress",
             value: function parseProgress(progressStr) {
-                // ... (оставляем как есть, без изменений)
+                if (!progressStr) return null;
+                
+                try {
+                    // Если это уже объект, просто вернем его
+                    if (typeof progressStr === 'object') {
+                        return progressStr;
+                    }
+                    
+                    // Если это строка, попробуем распарсить как JSON
+                    return JSON.parse(progressStr);
+                } catch (error) {
+                    console.error('[Game.js] Ошибка при парсинге прогресса:', error);
+                    return null;
+                }
             }
         },
         {
             // --- Сохраняет прогресс в облако ---
             key: "saveProgress",
             value: function saveProgress() {
-                // ... (оставляем как есть, без изменений)
+                var self = this;
+                // Проверяем, что есть хотя бы один куб на поле
+                let hasTiles = false;
+                for(let r = 0; r < this.grid.size; r++) {
+                    for(let c = 0; c < this.grid.size; c++) {
+                        if(this.grid.cells[r][c]) {
+                            hasTiles = true;
+                            break;
+                        }
+                    }
+                    if(hasTiles) break;
+                }
+                
+                // Сохраняем только если есть что сохранять
+                if(hasTiles && this.gameState !== 'lost') {
+                    const progressObj = this.getProgressObject();
+                    const progressJson = JSON.stringify(progressObj);
+                    
+                    console.log('[Game.js] Сохраняем прогресс в облако: кубиков =', 
+                                progressObj.grid.length, 'счет =', progressObj.score);
+                    
+                    return CloudSaves.save('progress', progressJson)
+                        .then(function() {
+                            console.log('[Game.js] Прогресс успешно сохранен в облако');
+                            return true;
+                        })
+                        .catch(function(error) {
+                            console.error('[Game.js] Ошибка при сохранении прогресса:', error);
+                            return false;
+                        });
+                } else {
+                    console.log('[Game.js] Нет активной игры для сохранения прогресса');
+                    return Promise.resolve(false);
+                }
             }
         },
         {
@@ -237,7 +326,7 @@ export var Game = /*#__PURE__*/ function() {
                 localStorage.setItem('highestTileValue', self.highestTileValue.toString());
                 localStorage.setItem('gamesPlayed', self.gamesPlayed.toString());
                 // --- CloudSaves ---
-                CloudSaves.saveAll({
+                return CloudSaves.saveAll({
                     best: self.highScore,
                     playscore: self.score,
                     maxtile: self.highestTileValue,
@@ -246,8 +335,10 @@ export var Game = /*#__PURE__*/ function() {
                     music: self.musicPlaying ? 1 : 0,
                 }).then(function() {
                     console.log("[Game.js] Saved stats: highScore = " + self.highScore + ", highestTileValue = " + self.highestTileValue + ", gamesPlayed = " + self.gamesPlayed + " [Cloud sync]");
+                    return true;
                 }).catch(function(e) {
                     console.error("[Game.js] Ошибка CloudSaves.saveAll:", e);
+                    throw e;
                 });
             }
         },
@@ -341,9 +432,6 @@ export var Game = /*#__PURE__*/ function() {
                     if (this.audioListener.context.state !== 'suspended') {
                         this.ui.updateMusicButtonText(this.musicPlaying);
                     }
-                    CloudSaves.save('music', this.musicPlaying ? 1 : 0).catch(e => {
-                        console.error("[Game.js] Ошибка CloudSaves.save (music):", e);
-                    });
                     return;
                 }
                 if (window.gamePushSDK.sounds.isMusicMuted) {
@@ -363,6 +451,34 @@ export var Game = /*#__PURE__*/ function() {
                                         this.progress.grid.length > 0;
                 if (hasValidProgress) {
                     // Игра стартует с восстановленным прогрессом
+                    console.log('[Game.js] Запуск игры с восстановленным прогрессом. Кубиков:', this.progress.grid.length);
+                    
+                    // Обновляем UI с восстановленными значениями
+                    this.updateScore(this.score);
+                    this.ui.updateHighScore(this.highScore);
+                    this.ui.updateHighestTile(this.highestTileValue);
+                    this.ui.updateGamesPlayed(this.gamesPlayed);
+                    
+                    // Обновляем UI настройки для восстановленных предпочтений
+                    this.ui.updateGlowButtonText(this.isGlowBright);
+                    this.ui.updateMusicButtonText(this.musicPlaying);
+                    
+                    // Применяем настройки к игровым компонентам
+                    this.sceneSetup.setGlowMode(this.isGlowBright);
+                    
+                    // Восстанавливаем музыку если была включена
+                    if (this.musicPlaying && this.backgroundMusic && !this.backgroundMusic.isPlaying) {
+                        if (window.gamePushSDK) {
+                            if (!window.gamePushSDK.sounds.isMusicMuted) {
+                                this.backgroundMusic.play();
+                            }
+                        } else {
+                            this.backgroundMusic.play();
+                        }
+                    }
+                    
+                    // Обновляем игровое состояние
+                    this.gameState = 'playing';
                 } else {
                     // Прогресс отсутствует или невалидный - создаем новую игровую сессию
                     this.gamesPlayed++;
