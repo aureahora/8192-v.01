@@ -753,7 +753,8 @@ export var Game = /*#__PURE__*/ function() {
                             console.log("[Game.js] Win condition reached!");
                         } else if (!_this.grid.canMove()) {
                             _this.gameState = 'lost';
-                            _this.ui.showMessage('Game Over!');
+                            const lang = getUserLanguage();
+                            _this.ui.showMessage(translations[lang].gameOver);
                             callGameplayStop();
                             console.log("[Game.js] Game Over (no moves left).");
                         }
@@ -764,7 +765,8 @@ export var Game = /*#__PURE__*/ function() {
                     this.triggerWobbleAnimation(direction);
                     if (this.gameState === 'playing' && !this.grid.canMove()) {
                         this.gameState = 'lost';
-                        this.ui.showMessage('Game Over!');
+                        const lang = getUserLanguage();
+                        this.ui.showMessage(translations[lang].gameOver);
                         callGameplayStop();
                         console.log("[Game.js] Game Over (after invalid move, no moves left).");
                         this.saveStats();
@@ -896,7 +898,8 @@ export var Game = /*#__PURE__*/ function() {
                     this.isMoving = false;
                     if (this.gameState === 'playing' && !this.grid.canMove()) {
                         this.gameState = 'lost';
-                        this.ui.showMessage('Game Over!');
+                        const lang = getUserLanguage();
+                        this.ui.showMessage(translations[lang].gameOver);
                         this.saveStats();
                         callGameplayStop();
                         console.log("[Game.js] Game Over (after animations, no moves left).");

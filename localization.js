@@ -8,6 +8,7 @@ export const translations = {
         glow: "Glow",
         music: "Music",
         winMessage: "You Win! Keep playing?",
+        gameOver: "Game Over!",
     },
     ru: {
         score: "Счёт",
@@ -18,6 +19,7 @@ export const translations = {
         glow: "Сияние",
         music: "Музыка",
         winMessage: "Победа! Продолжить игру?",
+        gameOver: "Игра окончена!",
     },
     fr: {
         score: "Score",
@@ -28,6 +30,7 @@ export const translations = {
         glow: "Lueur",
         music: "Musique",
         winMessage: "Vous avez gagné ! Continuer à jouer ?",
+        gameOver: "Partie terminée!",
     },
     it: {
         score: "Punteggio",
@@ -38,6 +41,7 @@ export const translations = {
         glow: "Bagliore",
         music: "Musica",
         winMessage: "Hai vinto! Vuoi continuare a giocare?",
+        gameOver: "Gioco finito!",
     },
     de: {
         score: "Punkte",
@@ -48,6 +52,7 @@ export const translations = {
         glow: "Glanz",
         music: "Musik",
         winMessage: "Du hast gewonnen! Weiterspielen?",
+        gameOver: "Spiel beendet!",
     },
     es: {
         score: "Puntuación",
@@ -58,6 +63,7 @@ export const translations = {
         glow: "Brillo",
         music: "Música",
         winMessage: "¡Has ganado! ¿Quieres seguir jugando?",
+        gameOver: "¡Fin del juego!",
     },
     zh: {
         score: "得分",
@@ -68,6 +74,7 @@ export const translations = {
         glow: "辉光",
         music: "音乐",
         winMessage: "你赢了！继续玩吗？",
+        gameOver: "游戏结束！",
     },
     pt: {
         score: "Pontuação",
@@ -78,6 +85,7 @@ export const translations = {
         glow: "Brilho",
         music: "Música",
         winMessage: "Você venceu! Deseja continuar jogando?",
+        gameOver: "Fim de jogo!",
     },
     ko: {
         score: "점수",
@@ -88,6 +96,7 @@ export const translations = {
         glow: "광택",
         music: "음악",
         winMessage: "승리했습니다! 계속 플레이하시겠습니까?",
+        gameOver: "게임 오버!",
     },
     ja: {
         score: "スコア",
@@ -98,6 +107,7 @@ export const translations = {
         glow: "グロー",
         music: "音楽",
         winMessage: "勝利！続けて遊びますか？",
+        gameOver: "ゲームオーバー！",
     },
     tr: {
         score: "Skor",
@@ -108,6 +118,7 @@ export const translations = {
         glow: "Parıltı",
         music: "Müzik",
         winMessage: "Kazandınız! Oynamaya devam etmek ister misiniz?",
+        gameOver: "Oyun bitti!",
     },
     ar: {
         score: "النقاط",
@@ -118,6 +129,7 @@ export const translations = {
         glow: "وهج",
         music: "موسيقى",
         winMessage: "لقد فزت! هل تريد الاستمرار في اللعب؟",
+        gameOver: "انتهت اللعبة!",
     },
     hi: {
         score: "स्कोर",
@@ -128,6 +140,7 @@ export const translations = {
         glow: "चमक",
         music: "संगीत",
         winMessage: "आप जीत गए! क्या आप खेलना जारी रखना चाहेंगे?",
+        gameOver: "खेल खत्म!",
     },
     id: {
         score: "Skor",
@@ -138,6 +151,7 @@ export const translations = {
         glow: "Cahaya",
         music: "Musik",
         winMessage: "Anda menang! Mau lanjut bermain?",
+        gameOver: "Permainan berakhir!",
     },
 };
 
