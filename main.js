@@ -16,7 +16,7 @@ function initSoundSDKIntegration(game) {
         console.log('[Sound SDK] mute: Отключаем все звуки (музыка и эффекты).');
         if (game.backgroundMusic && game.backgroundMusic.isPlaying) game.backgroundMusic.pause();
         game.musicPlaying = false;
-        game.ui.updateMusicButtonText(false);
+        uiUpdateMusicMenu(game, false);
         if (game.tapSound && game.tapSound.isPlaying) game.tapSound.pause();
         if (game.mergeSound && game.mergeSound.isPlaying) game.mergeSound.pause();
     });
@@ -24,7 +24,7 @@ function initSoundSDKIntegration(game) {
         console.log('[Sound SDK] mute:music: Отключаем только музыку.');
         if (game.backgroundMusic && game.backgroundMusic.isPlaying) game.backgroundMusic.pause();
         game.musicPlaying = false;
-        game.ui.updateMusicButtonText(false);
+        uiUpdateMusicMenu(game, false);
     });
     window.gamePushSDK.sounds.on('mute:sfx', () => {
         console.log('[Sound SDK] mute:sfx: Отключаем только эффекты.');
@@ -36,7 +36,7 @@ function initSoundSDKIntegration(game) {
         if (game.backgroundMusic && !window.gamePushSDK.sounds.isMusicMuted) {
             game.backgroundMusic.play();
             game.musicPlaying = true;
-            game.ui.updateMusicButtonText(true);
+            uiUpdateMusicMenu(game, true);
         }
     });
     window.gamePushSDK.sounds.on('unmute:music', () => {
@@ -44,7 +44,7 @@ function initSoundSDKIntegration(game) {
         if (game.backgroundMusic && !window.gamePushSDK.sounds.isMusicMuted) {
             game.backgroundMusic.play();
             game.musicPlaying = true;
-            game.ui.updateMusicButtonText(true);
+            uiUpdateMusicMenu(game, true);
         }
     });
     window.gamePushSDK.sounds.on('unmute:sfx', () => {
@@ -55,6 +55,19 @@ function initSoundSDKIntegration(game) {
         'isMusicMuted:', window.gamePushSDK.sounds.isMusicMuted,
         'isSFXMuted:', window.gamePushSDK.sounds.isSFXMuted
     );
+}
+
+// Обновление кнопки Музыка только на меню
+function uiUpdateMusicMenu(game, isPlaying) {
+    if (game.ui && typeof game.ui.updateMusicButtonText === 'function') {
+        game.ui.updateMusicButtonText(isPlaying);
+    }
+}
+
+function uiUpdateGlowMenu(game, isBright) {
+    if (game.ui && typeof game.ui.updateGlowButtonText === 'function') {
+        game.ui.updateGlowButtonText(isBright);
+    }
 }
 
 function initVisibilityEvents(game) {
@@ -108,49 +121,16 @@ async function startGameAfterSDK() {
         e.preventDefault();
     });
 
-    var setupGameListeners = function setupGameListeners(ui, game) {
-        ui.setResetCallback(function() {
-            return game.reset();
-        });
-        ui.setGlowToggleCallback(async function() {
-            game.isGlowBright = !game.isGlowBright;
-            game.sceneSetup.setGlowMode(game.isGlowBright);
-            ui.updateGlowButtonText(game.isGlowBright);
-            try {
-                await CloudSaves.save('glow', game.isGlowBright ? 0 : 1);
-                console.log('[main.js] Glow value saved to cloud:', game.isGlowBright ? 0 : 1);
-            } catch (e) {
-                console.error('[main.js] Error saving glow to cloud:', e);
-            }
-        });
-        ui.setMusicToggleCallback(function() {
-            if (window.gamePushSDK) {
-                if (window.gamePushSDK.sounds.isMusicMuted) {
-                    window.gamePushSDK.sounds.unmuteMusic();
-                    console.log("[main.js] Music button: Включить музыку через SDK.");
-                } else {
-                    window.gamePushSDK.sounds.muteMusic();
-                    console.log("[main.js] Music button: Отключить музыку через SDK.");
-                }
-            } else {
-                game.toggleMusic();
-            }
-        });
-    };
-
-    renderDiv.style.position = 'fixed';
-    renderDiv.style.top = '0';
-    renderDiv.style.left = '0';
-    renderDiv.style.width = '100%';
-    renderDiv.style.height = '100%';
-    renderDiv.style.margin = '0';
-    renderDiv.style.overflow = 'hidden';
-
-    // --- ЛОКАЛИЗАЦИЯ ---
+    // ЛОКАЛИЗАЦИЯ
     const lang = getUserLanguage();
     const t = translations[lang];
     var ui = new UI(document.body, t);
 
+    // --- Меню: флаг первого запуска ---
+    let isFirstMenu = true;
+    let game = null;
+
+    // --- Загрузка шрифта и старт игры ---
     var fontLoader = new FontLoader();
     fontLoader.load(FONT_JSON_URL, async function(loadedFont) {
         console.log("[main.js] Font loaded successfully.");
@@ -186,30 +166,84 @@ async function startGameAfterSDK() {
             console.warn('[main.js] Не удалось загрузить облачные сохранения:', e);
         }
 
-        console.log('[main.js] Создание экземпляра игры с данными из облака');
-        var game = new Game(renderDiv, ui, loadedFont, cloudStats);
+        // Создание экземпляра игры с данными из облака
+        game = new Game(renderDiv, ui, loadedFont, cloudStats);
 
         initSoundSDKIntegration(game);
         initVisibilityEvents(game);
 
-        setupGameListeners(ui, game);
-        console.log('[main.js] Starting game...');
-        try {
-            await game.start();
-            console.log('[main.js] Game started.');
+        // --- Настраиваем UI callbacks ---
+        function setupGameListeners() {
+            ui.setResetCallback(function() {
+                return game.reset();
+            });
 
-            if (!cloudStats?.progress) {
-                console.log('[main.js] Сохраняем начальное состояние игры в облако');
+            // --- Новая кнопка Save на игровом поле ---
+            ui.setSaveCallback(async function() {
                 try {
                     await game.saveProgress();
-                    console.log('[main.js] Начальное состояние игры успешно сохранено в облако');
-                } catch (err) {
-                    console.error('[main.js] Ошибка при сохранении начального состояния игры:', err);
+                    console.log('[main.js] Save button: Прогресс игры сохранен!');
+                } catch (e) {
+                    console.error('[main.js] Save button: Ошибка при сохранении прогресса!', e);
                 }
-            }
-        } catch (err) {
-            console.error('[main.js] Error starting game:', err);
+            });
+
+            // --- Кнопка "Menu" ---
+            ui.setMenuButtonCallback(function() {
+                ui.showMenu(true); // Показываем меню с "Continue"
+            });
+
+            // --- Glow/Сияние на меню ---
+            ui.setMenuGlowCallback(function() {
+                game.isGlowBright = !game.isGlowBright;
+                game.sceneSetup.setGlowMode(game.isGlowBright);
+                uiUpdateGlowMenu(game, game.isGlowBright);
+                CloudSaves.save('glow', game.isGlowBright ? 0 : 1)
+                    .then(() => console.log('[main.js] Glow value saved to cloud:', game.isGlowBright ? 0 : 1))
+                    .catch(e => console.error('[main.js] Error saving glow to cloud:', e));
+                return game.isGlowBright;
+            });
+
+            // --- Музыка на меню ---
+            ui.setMenuMusicCallback(function() {
+                if (window.gamePushSDK) {
+                    if (window.gamePushSDK.sounds.isMusicMuted) {
+                        window.gamePushSDK.sounds.unmuteMusic();
+                        game.musicPlaying = true;
+                        console.log("[main.js] Menu Music button: Включить музыку через SDK.");
+                    } else {
+                        window.gamePushSDK.sounds.muteMusic();
+                        game.musicPlaying = false;
+                        console.log("[main.js] Menu Music button: Отключить музыку через SDK.");
+                    }
+                } else {
+                    game.toggleMusic();
+                }
+                uiUpdateMusicMenu(game, game.musicPlaying);
+                CloudSaves.save('music', game.musicPlaying ? 1 : 0)
+                    .then(() => console.log('[main.js] Music value saved to cloud:', game.musicPlaying ? 1 : 0))
+                    .catch(e => console.error('[main.js] Error saving music to cloud:', e));
+                return game.musicPlaying;
+            });
+
+            // --- Кнопка Play/Continue в меню ---
+            ui.setMenuPlayCallback(function() {
+                ui.hideMenu();
+                if (isFirstMenu) {
+                    // Первый запуск, начинаем игру
+                    game.start();
+                    isFirstMenu = false;
+                } else {
+                    // Продолжаем игру (можно добавить логику паузы/возврата)
+                }
+            });
         }
+
+        setupGameListeners();
+
+        // --- Показываем меню при первом запуске ---
+        ui.showMenu(false); // "Play" на кнопке
+        isFirstMenu = true;
     }, undefined, function(error) {
         console.error('[main.js] Font loading failed:', error);
         ui.showMessage('Error: Could not load font. Please refresh.');
