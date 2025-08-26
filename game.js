@@ -1,5 +1,6 @@
 // --- CloudSaves Integration ---
 import { CloudSaves } from './cloudSaves.js';
+import { translations, getUserLanguage } from './localization.js';
 
 function _class_call_check(instance, Constructor) {
     if (!(instance instanceof Constructor)) {
@@ -746,7 +747,8 @@ export var Game = /*#__PURE__*/ function() {
                         }
                         if (_this.gameState !== 'won' && _this.grid.checkWinCondition(TARGET_VALUE)) {
                             _this.gameState = 'won';
-                            _this.ui.showMessage('You Win! Keep playing?');
+                            const lang = getUserLanguage();
+                            _this.ui.showMessage(translations[lang].winMessage);
                             callGameplayStop();
                             console.log("[Game.js] Win condition reached!");
                         } else if (!_this.grid.canMove()) {

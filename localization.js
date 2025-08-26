@@ -7,6 +7,7 @@ export const translations = {
         reset: "Reset",
         glow: "Glow",
         music: "Music",
+        winMessage: "You Win! Keep playing?",
     },
     ru: {
         score: "Счёт",
@@ -16,6 +17,7 @@ export const translations = {
         reset: "Сброс",
         glow: "Сияние",
         music: "Музыка",
+        winMessage: "Победа! Продолжить игру?",
     },
     fr: {
         score: "Score",
@@ -25,6 +27,7 @@ export const translations = {
         reset: "Réinitialiser",
         glow: "Lueur",
         music: "Musique",
+        winMessage: "Vous avez gagné ! Continuer à jouer ?",
     },
     it: {
         score: "Punteggio",
@@ -34,6 +37,7 @@ export const translations = {
         reset: "Reset",
         glow: "Bagliore",
         music: "Musica",
+        winMessage: "Hai vinto! Vuoi continuare a giocare?",
     },
     de: {
         score: "Punkte",
@@ -43,6 +47,7 @@ export const translations = {
         reset: "Zurücksetzen",
         glow: "Glanz",
         music: "Musik",
+        winMessage: "Du hast gewonnen! Weiterspielen?",
     },
     es: {
         score: "Puntuación",
@@ -52,6 +57,7 @@ export const translations = {
         reset: "Reiniciar",
         glow: "Brillo",
         music: "Música",
+        winMessage: "¡Has ganado! ¿Quieres seguir jugando?",
     },
     zh: {
         score: "得分",
@@ -61,6 +67,7 @@ export const translations = {
         reset: "重置",
         glow: "辉光",
         music: "音乐",
+        winMessage: "你赢了！继续玩吗？",
     },
     pt: {
         score: "Pontuação",
@@ -70,6 +77,7 @@ export const translations = {
         reset: "Reiniciar",
         glow: "Brilho",
         music: "Música",
+        winMessage: "Você venceu! Deseja continuar jogando?",
     },
     ko: {
         score: "점수",
@@ -79,6 +87,7 @@ export const translations = {
         reset: "초기화",
         glow: "광택",
         music: "음악",
+        winMessage: "승리했습니다! 계속 플레이하시겠습니까?",
     },
     ja: {
         score: "スコア",
@@ -88,6 +97,7 @@ export const translations = {
         reset: "リセット",
         glow: "グロー",
         music: "音楽",
+        winMessage: "勝利！続けて遊びますか？",
     },
     tr: {
         score: "Skor",
@@ -97,6 +107,7 @@ export const translations = {
         reset: "Sıfırla",
         glow: "Parıltı",
         music: "Müzik",
+        winMessage: "Kazandınız! Oynamaya devam etmek ister misiniz?",
     },
     ar: {
         score: "النقاط",
@@ -106,6 +117,7 @@ export const translations = {
         reset: "إعادة ضبط",
         glow: "وهج",
         music: "موسيقى",
+        winMessage: "لقد فزت! هل تريد الاستمرار في اللعب؟",
     },
     hi: {
         score: "स्कोर",
@@ -115,6 +127,7 @@ export const translations = {
         reset: "रीसेट",
         glow: "चमक",
         music: "संगीत",
+        winMessage: "आप जीत गए! क्या आप खेलना जारी रखना चाहेंगे?",
     },
     id: {
         score: "Skor",
@@ -124,6 +137,7 @@ export const translations = {
         reset: "Reset",
         glow: "Cahaya",
         music: "Musik",
+        winMessage: "Anda menang! Mau lanjut bermain?",
     },
 };
 
