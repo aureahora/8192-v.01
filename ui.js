@@ -91,6 +91,19 @@ export var UI = /*#__PURE__*/ function() {
         this.buttonsContainer.style.display = 'flex';
         this.buttonsContainer.style.gap = '8px';
 
+        // --- MENU BUTTON (NEW) ---
+        this.menuButton = this._createButton('menuButton', 'Menu', '#d76753'); // Main color
+        this.menuButton.isActive = false;
+        this.menuButton.style.transition = 'background-color 0.25s cubic-bezier(.4,0,.2,1)';
+        this.menuButton.onclick = function () {
+            _this.menuButton.isActive = !_this.menuButton.isActive;
+            if (_this.menuButton.isActive) {
+                _this.menuButton.style.backgroundColor = '#4a5568'; // same as Glow "off"
+            } else {
+                _this.menuButton.style.backgroundColor = '#d76753';
+            }
+        };
+
         // Reset Button using helper
         this.resetButton = this._createButton('resetButton', this.t.reset, '#ff8c00');
         // Glow Toggle Button using helper
@@ -98,6 +111,8 @@ export var UI = /*#__PURE__*/ function() {
         // Music Toggle Button using helper
         this.toggleMusicButton = this._createButton('toggleMusicButton', this.t.music, '#6c757d'); // Initial grey
         
+        // --- Add buttons in desired order: Menu, Reset, Glow, Music ---
+        this.buttonsContainer.appendChild(this.menuButton);
         this.buttonsContainer.appendChild(this.resetButton);
         this.buttonsContainer.appendChild(this.toggleGlowButton);
         this.buttonsContainer.appendChild(this.toggleMusicButton);
@@ -141,6 +156,7 @@ export var UI = /*#__PURE__*/ function() {
                 button.style.backgroundColor = backgroundColor;
                 button.style.color = 'white';
                 button.style.cursor = 'pointer';
+                button.style.transition = 'background-color 0.25s cubic-bezier(.4,0,.2,1)';
                 return button;
             }
         },
@@ -170,6 +186,7 @@ export var UI = /*#__PURE__*/ function() {
                     this.gamesPlayedElement.style.fontSize = statsFontSize;
 
                     const btnStyle = { fontSize: '14px', padding: '8px 12px' };
+                    Object.assign(this.menuButton.style, btnStyle);
                     Object.assign(this.resetButton.style, btnStyle);
                     Object.assign(this.toggleGlowButton.style, btnStyle);
                     Object.assign(this.toggleMusicButton.style, btnStyle);
@@ -197,6 +214,7 @@ export var UI = /*#__PURE__*/ function() {
                     this.gamesPlayedElement.style.fontSize = statsFontSize;
 
                     const btnStyle = { fontSize: '14px', padding: '8px 12px' };
+                    Object.assign(this.menuButton.style, btnStyle);
                     Object.assign(this.resetButton.style, btnStyle);
                     Object.assign(this.toggleGlowButton.style, btnStyle);
                     Object.assign(this.toggleMusicButton.style, btnStyle);
