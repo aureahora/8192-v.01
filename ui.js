@@ -25,11 +25,13 @@ export var UI = /*#__PURE__*/ function() {
         var _this = this;
         _class_call_check(this, UI);
         this.container = container;
+        this.onMenuStateChange = null; // Новый колбэк для отслеживания состояния меню
 
         // Определяем язык
         const lang = getUserLanguage();
         this.t = providedTranslations || translations[lang] || translations['en'];
 
+        // --- UI и элементы ---
         this.uiContainer = document.createElement('div');
         this.uiContainer.id = 'uiContainer';
         this.uiContainer.style.position = 'absolute';
@@ -91,7 +93,7 @@ export var UI = /*#__PURE__*/ function() {
         this.buttonsContainer.style.gap = '8px';
 
         // --- MENU BUTTON (NEW) ---
-        this.menuButton = this._createButton('menuButton', 'Menu', '#d76753'); // Main color
+        this.menuButton = this._createButton('menuButton', 'Menu', '#d76753');
         this.menuButton.isActive = false;
         this.menuButton.style.transition = 'background-color 0.25s cubic-bezier(.4,0,.2,1)';
 
@@ -119,7 +121,7 @@ export var UI = /*#__PURE__*/ function() {
         this.messageElement.style.borderRadius = '10px';
         this.messageElement.style.textAlign = 'center';
         this.messageElement.style.zIndex = '110';
-        this.messageElement.style.display = 'none'; // Hidden by default
+        this.messageElement.style.display = 'none';
 
         // === Меню Overlay ===
         this.menuOverlay = document.createElement('div');
@@ -137,7 +139,7 @@ export var UI = /*#__PURE__*/ function() {
         this.menuOverlay.style.backdropFilter = 'blur(7px)';
         this.menuOverlay.style.transition = 'opacity 0.3s cubic-bezier(.4,0,.2,1)';
 
-        // Меню-плашка (адаптивная)
+        // Меню-плашка
         this.menuCard = document.createElement('div');
         this.menuCard.style.width = 'min(90vw, 420px)';
         this.menuCard.style.maxWidth = '98vw';
@@ -233,7 +235,6 @@ export var UI = /*#__PURE__*/ function() {
         this.container.appendChild(this.uiContainer);
         this.container.appendChild(this.messageElement);
 
-        // Adjust positioning for mobile
         this.adjustLayout();
         window.addEventListener('resize', function() {
             return _this.adjustLayout();
@@ -395,7 +396,6 @@ export var UI = /*#__PURE__*/ function() {
                 this.menuButton.onclick = callback;
             }
         },
-        // --- Меню кнопки ---
         {
             key: "setMenuGlowCallback",
             value: function setMenuGlowCallback(callback) {
@@ -423,7 +423,6 @@ export var UI = /*#__PURE__*/ function() {
         {
             key: "updateGlowButtonText",
             value: function updateGlowButtonText(isBright) {
-                // on menu only!
                 this.menuGlowButton.textContent = this.t.glow;
                 this.menuGlowButton.style.background = isBright ? '#007bff' : '#4a5568';
             }
@@ -431,7 +430,6 @@ export var UI = /*#__PURE__*/ function() {
         {
             key: "updateMusicButtonText",
             value: function updateMusicButtonText(isPlaying) {
-                // on menu only!
                 this.menuMusicButton.textContent = this.t.music;
                 this.menuMusicButton.style.background = isPlaying ? '#28a745' : '#6c757d';
             }
@@ -450,16 +448,27 @@ export var UI = /*#__PURE__*/ function() {
             }
         },
         {
+            // Новый метод для установки колбэка при изменении состояния меню
+            key: "setMenuStateChangeCallback",
+            value: function setMenuStateChangeCallback(callback) {
+                this.onMenuStateChange = callback;
+            }
+        },
+        {
             key: "showMenu",
             value: function showMenu(isContinue = false) {
                 this.menuPlayButton.textContent = isContinue ? 'Continue' : 'Play';
                 this.menuOverlay.style.display = 'flex';
+                // Вызываем колбэк при открытии меню
+                if (this.onMenuStateChange) this.onMenuStateChange(true);
             }
         },
         {
             key: "hideMenu",
             value: function hideMenu() {
                 this.menuOverlay.style.display = 'none';
+                // Вызываем колбэк при закрытии меню
+                if (this.onMenuStateChange) this.onMenuStateChange(false);
             }
         }
     ]);

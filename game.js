@@ -103,6 +103,9 @@ export var Game = /*#__PURE__*/ function() {
         this.clock = new THREE.Clock();
         this.lastMoveDirection = new THREE.Vector2(0, 0);
 
+        // === ВАЖНО: ФЛАГ АКТИВНОСТИ ВВОДА ===
+        this.isInputActive = true;
+
         // --- CloudSaves: инициализация из облака, падение на локальное если облако пусто ---
         this.highScore = cloudLoadedStats?.best ?? parseInt(localStorage.getItem('highScore') || '0', 10);
         this.score = cloudLoadedStats?.playscore ?? 0;
@@ -156,6 +159,17 @@ export var Game = /*#__PURE__*/ function() {
         console.log("[Game.js] Game instance created.");
     }
     _create_class(Game, [
+        // === ДОБАВЛЕН МЕТОД ДЛЯ ВКЛ/ВЫКЛ ВВОДА ===
+        {
+            key: "setInputActive",
+            value: function setInputActive(active) {
+                this.isInputActive = active;
+                if (this.inputHandler) {
+                    this.inputHandler.setInputEnabled(active);
+                }
+            }
+        },
+        // === ДАЛЕЕ ВСЕ ОСТАЛЬНЫЕ МЕТОДЫ ===
         {
             // --- Метод для сериализации всей игровой ситуации ---
             key: "getProgressObject",
@@ -191,34 +205,20 @@ export var Game = /*#__PURE__*/ function() {
                     console.error('[Game.js] Невозможно восстановить прогресс: данные отсутствуют или имеют неверный формат.');
                     return false;
                 }
-
                 try {
-                    // Очищаем сетку
                     this.grid.clear();
-                    
-                    // Восстанавливаем состояние игрового поля
                     for (let i = 0; i < progressObj.grid.length; i++) {
                         const tileData = progressObj.grid[i];
                         if (tileData && typeof tileData.x === 'number' && 
                             typeof tileData.y === 'number' && 
                             typeof tileData.value === 'number') {
-                            
-                            // Создаем новый тайл с сохраненным значением и позицией
                             const tile = new Tile(tileData.value, tileData.x, tileData.y, this.loadedFont);
-                            
-                            // Добавляем тайл на сетку
                             this.grid.cells[tileData.y][tileData.x] = tile;
-                            
-                            // Устанавливаем позицию в 3D пространстве
                             const position = this.grid.getCellPosition(tileData.x, tileData.y);
                             tile.mesh.position.copy(position);
-                            
-                            // Добавляем меш тайла на сцену
                             this.grid.gridGroup.add(tile.mesh);
                         }
                     }
-                    
-                    // Восстанавливаем счет и статистику
                     this.score = progressObj.score || 0;
                     if (progressObj.highScore && progressObj.highScore > this.highScore) {
                         this.highScore = progressObj.highScore;
@@ -229,7 +229,6 @@ export var Game = /*#__PURE__*/ function() {
                     if (progressObj.gamesPlayed) {
                         this.gamesPlayed = progressObj.gamesPlayed;
                     }
-                    
                     console.log('[Game.js] Восстановлено', progressObj.grid.length, 'тайлов, счет:', this.score);
                     return true;
                 } catch (error) {
@@ -239,18 +238,13 @@ export var Game = /*#__PURE__*/ function() {
             }
         },
         {
-            // --- Парсинг JSON прогресса ---
             key: "parseProgress",
             value: function parseProgress(progressStr) {
                 if (!progressStr) return null;
-                
                 try {
-                    // Если это уже объект, просто вернем его
                     if (typeof progressStr === 'object') {
                         return progressStr;
                     }
-                    
-                    // Если это строка, попробуем распарсить как JSON
                     return JSON.parse(progressStr);
                 } catch (error) {
                     console.error('[Game.js] Ошибка при парсинге прогресса:', error);
@@ -259,11 +253,9 @@ export var Game = /*#__PURE__*/ function() {
             }
         },
         {
-            // --- Сохраняет прогресс в облако ---
             key: "saveProgress",
             value: function saveProgress() {
                 var self = this;
-                // Проверяем, что есть хотя бы один куб на поле
                 let hasTiles = false;
                 for(let r = 0; r < this.grid.size; r++) {
                     for(let c = 0; c < this.grid.size; c++) {
@@ -274,15 +266,11 @@ export var Game = /*#__PURE__*/ function() {
                     }
                     if(hasTiles) break;
                 }
-                
-                // Сохраняем только если есть что сохранять
                 if(hasTiles && this.gameState !== 'lost') {
                     const progressObj = this.getProgressObject();
                     const progressJson = JSON.stringify(progressObj);
-                    
                     console.log('[Game.js] Сохраняем прогресс в облако: кубиков =', 
                                 progressObj.grid.length, 'счет =', progressObj.score);
-                    
                     return CloudSaves.save('progress', progressJson)
                         .then(function() {
                             console.log('[Game.js] Прогресс успешно сохранен в облако');
@@ -317,15 +305,12 @@ export var Game = /*#__PURE__*/ function() {
             }
         },
         {
-            // --- Теперь saveStats вызывается только вручную (по кнопке Save!) ---
             key: "saveStats",
             value: function saveStats() {
                 var self = this;
-                // --- Локальное сохранение ---
                 localStorage.setItem('highScore', self.highScore.toString());
                 localStorage.setItem('highestTileValue', self.highestTileValue.toString());
                 localStorage.setItem('gamesPlayed', self.gamesPlayed.toString());
-                // --- CloudSaves ---
                 return CloudSaves.saveAll({
                     best: self.highScore,
                     playscore: self.score,
@@ -347,6 +332,8 @@ export var Game = /*#__PURE__*/ function() {
             value: function setupControls() {
                 var _this = this;
                 this.inputHandler.onMove(function(direction) {
+                    // === ДОБАВЛЕНА ПРОВЕРКА ФЛАГА АКТИВНОСТИ ВВОДА ===
+                    if (!_this.isInputActive) return;
                     if (_this.isMoving || _this.gameState === 'lost') return;
                     _this.moveTiles(direction);
                 });
@@ -444,29 +431,19 @@ export var Game = /*#__PURE__*/ function() {
         {
             key: "start",
             value: function start() {
-                // Проверяем, что прогресс валидный и в нем есть непустой массив кубиков
                 const hasValidProgress = this.progressRestored && this.progress && 
                                         this.progress.grid && 
                                         Array.isArray(this.progress.grid) && 
                                         this.progress.grid.length > 0;
                 if (hasValidProgress) {
-                    // Игра стартует с восстановленным прогрессом
                     console.log('[Game.js] Запуск игры с восстановленным прогрессом. Кубиков:', this.progress.grid.length);
-                    
-                    // Обновляем UI с восстановленными значениями
                     this.updateScore(this.score);
                     this.ui.updateHighScore(this.highScore);
                     this.ui.updateHighestTile(this.highestTileValue);
                     this.ui.updateGamesPlayed(this.gamesPlayed);
-                    
-                    // Обновляем UI настройки для восстановленных предпочтений
                     this.ui.updateGlowButtonText(this.isGlowBright);
                     this.ui.updateMusicButtonText(this.musicPlaying);
-                    
-                    // Применяем настройки к игровым компонентам
                     this.sceneSetup.setGlowMode(this.isGlowBright);
-                    
-                    // Восстанавливаем музыку если была включена
                     if (this.musicPlaying && this.backgroundMusic && !this.backgroundMusic.isPlaying) {
                         if (window.gamePushSDK) {
                             if (!window.gamePushSDK.sounds.isMusicMuted) {
@@ -476,11 +453,8 @@ export var Game = /*#__PURE__*/ function() {
                             this.backgroundMusic.play();
                         }
                     }
-                    
-                    // Обновляем игровое состояние
                     this.gameState = 'playing';
                 } else {
-                    // Прогресс отсутствует или невалидный - создаем новую игровую сессию
                     this.gamesPlayed++;
                     this.ui.updateGamesPlayed(this.gamesPlayed);
                     this.grid.clear();
@@ -507,7 +481,6 @@ export var Game = /*#__PURE__*/ function() {
                 this.animations = [];
                 this.gameState = 'playing';
                 this.ui.hideMessage();
-                // Добавляем стартовые кубики
                 this.grid.addRandomTile();
                 this.grid.addRandomTile();
                 this.sceneSetup.adjustCameraToFitGrid(this.ui.uiContainer.offsetHeight);
@@ -817,6 +790,16 @@ export var Game = /*#__PURE__*/ function() {
                 this.sceneSetup.updateShaderTransition();
                 this.sceneSetup.updateParticles(this.lastMoveDirection);
                 this.sceneSetup.composer.render();
+            }
+        },
+        // === ДОБАВЛЕНО: Управление блокировкой ввода при показе меню ===
+        {
+            key: "setInputActive",
+            value: function setInputActive(active) {
+                this.isInputActive = active;
+                if (this.inputHandler && typeof this.inputHandler.setInputEnabled === "function") {
+                    this.inputHandler.setInputEnabled(active);
+                }
             }
         }
     ]);

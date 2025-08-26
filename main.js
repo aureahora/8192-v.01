@@ -169,6 +169,11 @@ async function startGameAfterSDK() {
         // Создание экземпляра игры с данными из облака
         game = new Game(renderDiv, ui, loadedFont, cloudStats);
 
+        // --- ВАЖНО: Связываем UI и Game для управления вводом при открытии/закрытии меню ---
+        ui.setMenuStateChangeCallback(function(isMenuOpen) {
+            game.setInputActive(!isMenuOpen);
+        });
+
         initSoundSDKIntegration(game);
         initVisibilityEvents(game);
 

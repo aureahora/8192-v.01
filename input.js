@@ -28,6 +28,7 @@ export var InputHandler = /*#__PURE__*/ function() {
         this.touchEndX = 0;
         this.touchEndY = 0;
         this.minSwipeDistance = 30; // Minimum distance in pixels to register as a swipe
+        this.isEnabled = true; // Новый флаг для определения активности ввода
         this.handleKeyDown = this.handleKeyDown.bind(this);
         this.handleTouchStart = this.handleTouchStart.bind(this);
         this.handleTouchMove = this.handleTouchMove.bind(this);
@@ -49,9 +50,18 @@ export var InputHandler = /*#__PURE__*/ function() {
             }
         },
         {
+            // Новый метод для включения/отключения ввода
+            key: "setInputEnabled",
+            value: function setInputEnabled(enabled) {
+                this.isEnabled = enabled;
+            }
+        },
+        {
             key: "handleKeyDown",
             value: function handleKeyDown(event) {
-                if (!this.moveCallback) return;
+                // Проверяем флаг isEnabled перед обработкой ввода
+                if (!this.moveCallback || !this.isEnabled) return;
+                
                 var direction = null;
                 switch(event.key){
                     case 'ArrowUp':
@@ -88,6 +98,9 @@ export var InputHandler = /*#__PURE__*/ function() {
         {
             key: "handleTouchStart",
             value: function handleTouchStart(event) {
+                // Проверяем флаг isEnabled перед обработкой ввода
+                if (!this.isEnabled) return;
+                
                 // Prevent default touch actions like scrolling or zooming if swipe starts on the game area
                 if (event.touches.length === 1) {
                     event.preventDefault();
@@ -101,6 +114,9 @@ export var InputHandler = /*#__PURE__*/ function() {
         {
             key: "handleTouchMove",
             value: function handleTouchMove(event) {
+                // Проверяем флаг isEnabled перед обработкой ввода
+                if (!this.isEnabled) return;
+                
                 if (event.touches.length === 1) {
                     event.preventDefault(); // Prevent scrolling while swiping
                     this.touchEndX = event.touches[0].clientX;
@@ -111,7 +127,9 @@ export var InputHandler = /*#__PURE__*/ function() {
         {
             key: "handleTouchEnd",
             value: function handleTouchEnd(event) {
-                if (!this.moveCallback || this.touchStartX === 0) return; // Ensure start event was captured
+                // Проверяем флаг isEnabled перед обработкой ввода
+                if (!this.moveCallback || !this.isEnabled || this.touchStartX === 0) return;
+                
                 var deltaX = this.touchEndX - this.touchStartX;
                 var deltaY = this.touchEndY - this.touchStartY;
                 // Reset points for next touch
