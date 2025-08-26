@@ -103,6 +103,11 @@ async function startGameAfterSDK() {
         return;
     }
 
+    // --- БЛОКИРУЕМ КОНТЕКСТНОЕ МЕНЮ ПО ПРАВОМУ КЛИКУ ---
+    renderDiv.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+    });
+
     var setupGameListeners = function setupGameListeners(ui, game) {
         ui.setResetCallback(function() {
             return game.reset();
