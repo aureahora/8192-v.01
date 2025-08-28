@@ -9,6 +9,13 @@ export const translations = {
         music: "Music",
         winMessage: "You Win! Keep playing?",
         gameOver: "Game Over!",
+        menu: "Menu",
+        save: "Save",
+        saving: "Saving...",
+        saved: "Saved!",
+        saveError: "Error!",
+        play: "Play",
+        continue: "Continue"
     },
     ru: {
         score: "Счёт",
@@ -20,6 +27,13 @@ export const translations = {
         music: "Музыка",
         winMessage: "Победа! Продолжить игру?",
         gameOver: "Игра окончена!",
+        menu: "Меню",
+        save: "Сохранить",
+        saving: "Сохраняем...",
+        saved: "Сохранено!",
+        saveError: "Ошибка!",
+        play: "Играть",
+        continue: "Продолжить"
     },
     fr: {
         score: "Score",
@@ -31,6 +45,13 @@ export const translations = {
         music: "Musique",
         winMessage: "Vous avez gagné ! Continuer à jouer ?",
         gameOver: "Partie terminée!",
+        menu: "Menu",
+        save: "Sauvegarder",
+        saving: "Sauvegarde...",
+        saved: "Sauvegardé !",
+        saveError: "Erreur !",
+        play: "Jouer",
+        continue: "Continuer"
     },
     it: {
         score: "Punteggio",
@@ -42,6 +63,13 @@ export const translations = {
         music: "Musica",
         winMessage: "Hai vinto! Vuoi continuare a giocare?",
         gameOver: "Gioco finito!",
+        menu: "Menu",
+        save: "Salva",
+        saving: "Salvataggio...",
+        saved: "Salvato!",
+        saveError: "Errore!",
+        play: "Gioca",
+        continue: "Continua"
     },
     de: {
         score: "Punkte",
@@ -53,6 +81,13 @@ export const translations = {
         music: "Musik",
         winMessage: "Du hast gewonnen! Weiterspielen?",
         gameOver: "Spiel beendet!",
+        menu: "Menü",
+        save: "Speichern",
+        saving: "Wird gespeichert...",
+        saved: "Gespeichert!",
+        saveError: "Fehler!",
+        play: "Spielen",
+        continue: "Fortsetzen"
     },
     es: {
         score: "Puntuación",
@@ -64,6 +99,13 @@ export const translations = {
         music: "Música",
         winMessage: "¡Has ganado! ¿Quieres seguir jugando?",
         gameOver: "¡Fin del juego!",
+        menu: "Menú",
+        save: "Guardar",
+        saving: "Guardando...",
+        saved: "¡Guardado!",
+        saveError: "¡Error!",
+        play: "Jugar",
+        continue: "Continuar"
     },
     zh: {
         score: "得分",
@@ -75,6 +117,13 @@ export const translations = {
         music: "音乐",
         winMessage: "你赢了！继续玩吗？",
         gameOver: "游戏结束！",
+        menu: "菜单",
+        save: "保存",
+        saving: "保存中...",
+        saved: "已保存！",
+        saveError: "错误！",
+        play: "开始",
+        continue: "继续"
     },
     pt: {
         score: "Pontuação",
@@ -86,6 +135,13 @@ export const translations = {
         music: "Música",
         winMessage: "Você venceu! Deseja continuar jogando?",
         gameOver: "Fim de jogo!",
+        menu: "Menu",
+        save: "Salvar",
+        saving: "Salvando...",
+        saved: "Salvo!",
+        saveError: "Erro!",
+        play: "Jogar",
+        continue: "Continuar"
     },
     ko: {
         score: "점수",
@@ -97,6 +153,13 @@ export const translations = {
         music: "음악",
         winMessage: "승리했습니다! 계속 플레이하시겠습니까?",
         gameOver: "게임 오버!",
+        menu: "메뉴",
+        save: "저장",
+        saving: "저장 중...",
+        saved: "저장됨!",
+        saveError: "오류!",
+        play: "플레이",
+        continue: "계속"
     },
     ja: {
         score: "スコア",
@@ -108,6 +171,13 @@ export const translations = {
         music: "音楽",
         winMessage: "勝利！続けて遊びますか？",
         gameOver: "ゲームオーバー！",
+        menu: "メニュー",
+        save: "保存",
+        saving: "保存中...",
+        saved: "保存完了！",
+        saveError: "エラー！",
+        play: "プレイ",
+        continue: "続ける"
     },
     tr: {
         score: "Skor",
@@ -119,6 +189,13 @@ export const translations = {
         music: "Müzik",
         winMessage: "Kazandınız! Oynamaya devam etmek ister misiniz?",
         gameOver: "Oyun bitti!",
+        menu: "Menü",
+        save: "Kaydet",
+        saving: "Kaydediliyor...",
+        saved: "Kaydedildi!",
+        saveError: "Hata!",
+        play: "Oyna",
+        continue: "Devam et"
     },
     ar: {
         score: "النقاط",
@@ -130,6 +207,13 @@ export const translations = {
         music: "موسيقى",
         winMessage: "لقد فزت! هل تريد الاستمرار في اللعب؟",
         gameOver: "انتهت اللعبة!",
+        menu: "القائمة",
+        save: "حفظ",
+        saving: "جارٍ الحفظ...",
+        saved: "تم الحفظ!",
+        saveError: "خطأ!",
+        play: "ابدأ اللعب",
+        continue: "تابع"
     },
     hi: {
         score: "स्कोर",
@@ -141,6 +225,13 @@ export const translations = {
         music: "संगीत",
         winMessage: "आप जीत गए! क्या आप खेलना जारी रखना चाहेंगे?",
         gameOver: "खेल खत्म!",
+        menu: "मेनू",
+        save: "सेव करें",
+        saving: "सेव हो रहा है...",
+        saved: "सेव हो गया!",
+        saveError: "त्रुटि!",
+        play: "खेलें",
+        continue: "जारी रखें"
     },
     id: {
         score: "Skor",
@@ -152,6 +243,13 @@ export const translations = {
         music: "Musik",
         winMessage: "Anda menang! Mau lanjut bermain?",
         gameOver: "Permainan berakhir!",
+        menu: "Menu",
+        save: "Simpan",
+        saving: "Menyimpan...",
+        saved: "Tersimpan!",
+        saveError: "Kesalahan!",
+        play: "Mainkan",
+        continue: "Lanjutkan"
     },
 };
 

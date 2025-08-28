@@ -93,14 +93,14 @@ export var UI = /*#__PURE__*/ function() {
         this.buttonsContainer.style.gap = '8px';
 
         // --- MENU BUTTON (NEW) ---
-        this.menuButton = this._createButton('menuButton', 'Menu', '#d76753');
+        this.menuButton = this._createButton('menuButton', this.t.menu, '#d76753');
         this.menuButton.isActive = false;
         this.menuButton.style.transition = 'background-color 0.25s cubic-bezier(.4,0,.2,1)';
 
         // Reset Button using helper
         this.resetButton = this._createButton('resetButton', this.t.reset, '#ff8c00');
         // Save Button вместо Glow/Music
-        this.saveButton = this._createButton('saveButton', 'Save', '#28a745');
+        this.saveButton = this._createButton('saveButton', this.t.save, '#28a745');
         this.saveButton.style.backgroundColor = '#28a745';
 
         // --- Add buttons in desired order: Menu, Reset, Save ---
@@ -190,7 +190,7 @@ export var UI = /*#__PURE__*/ function() {
         // Кнопка Play/Continue
         this.menuPlayButton = document.createElement('button');
         this.menuPlayButton.id = 'menuPlayButton';
-        this.menuPlayButton.textContent = 'Play';
+        this.menuPlayButton.textContent = this.t.play;
         this.menuPlayButton.style.fontSize = '1.25em';
         this.menuPlayButton.style.fontWeight = 'bold';
         this.menuPlayButton.style.padding = '12px 40px';
@@ -363,28 +363,28 @@ export var UI = /*#__PURE__*/ function() {
                 this.saveButton.onclick = async () => {
                     // Меняем цвет на серый во время сохранения
                     this.saveButton.style.backgroundColor = '#6c757d';
-                    this.saveButton.textContent = 'Saving...';
+                    this.saveButton.textContent = this.t.saving;
                     
                     try {
                         await callback();
                         
                         // Показываем успех
                         this.saveButton.style.backgroundColor = '#28a745';
-                        this.saveButton.textContent = 'Saved!';
+                        this.saveButton.textContent = this.t.saved;
                         
                         // Возвращаем исходный текст через 2 секунды
                         setTimeout(() => {
-                            this.saveButton.textContent = 'Save';
+                            this.saveButton.textContent = this.t.save;
                         }, 2000);
                     } catch (e) {
                         // Показываем ошибку
                         this.saveButton.style.backgroundColor = '#dc3545';
-                        this.saveButton.textContent = 'Error!';
+                        this.saveButton.textContent = this.t.saveError;
                         
                         // Возвращаем исходный текст и цвет через 2 секунды
                         setTimeout(() => {
                             this.saveButton.style.backgroundColor = '#28a745';
-                            this.saveButton.textContent = 'Save';
+                            this.saveButton.textContent = this.t.save;
                         }, 2000);
                     }
                 };
@@ -457,7 +457,7 @@ export var UI = /*#__PURE__*/ function() {
         {
             key: "showMenu",
             value: function showMenu(isContinue = false) {
-                this.menuPlayButton.textContent = isContinue ? 'Continue' : 'Play';
+                this.menuPlayButton.textContent = isContinue ? this.t.continue : this.t.play;
                 this.menuOverlay.style.display = 'flex';
                 // Вызываем колбэк при открытии меню
                 if (this.onMenuStateChange) this.onMenuStateChange(true);
