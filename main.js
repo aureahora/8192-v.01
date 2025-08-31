@@ -109,6 +109,26 @@ function initVisibilityEvents(game) {
     });
 }
 
+// --- GamePush: Функция ожидания SDK и вызова gameStart() ---
+function callGameStartWhenReady() {
+    let attempts = 0;
+    const maxAttempts = 30;
+    const interval = setInterval(() => {
+        if (window.gamePushSDK) {
+            if (typeof window.gamePushSDK.gameStart === "function") {
+                window.gamePushSDK.gameStart();
+                console.log("[main.js] window.gamePushSDK.gameStart() успешно вызван через ожидание.");
+            } else {
+                console.log("[main.js] GamePushSDK обнаружен, но метод gameStart отсутствует.");
+            }
+            clearInterval(interval);
+        } else if (++attempts > maxAttempts) {
+            clearInterval(interval);
+            console.warn("[main.js] GamePushSDK не обнаружен после ожидания.");
+        }
+    }, 100);
+}
+
 async function startGameAfterSDK() {
     const renderDiv = document.getElementById('renderDiv');
     if (!renderDiv) {
@@ -266,6 +286,10 @@ async function startGameAfterSDK() {
         // --- Показываем меню при первом запуске ---
         ui.showMenu(false); // "Play" на кнопке
         isFirstMenu = true;
+
+        // --- ДОБАВЛЕН ВЫЗОВ GamePush gameStart() при первом показе меню ---
+        callGameStartWhenReady();
+
     }, undefined, function(error) {
         console.error('[main.js] Font loading failed:', error);
         ui.showMessage('Error: Could not load font. Please refresh.');

@@ -139,6 +139,11 @@ export var UI = /*#__PURE__*/ function() {
         this.menuOverlay.style.backdropFilter = 'blur(7px)';
         this.menuOverlay.style.transition = 'opacity 0.3s cubic-bezier(.4,0,.2,1)';
 
+        // === Блокировка контекстного меню ===
+        this.menuOverlay.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+        });
+
         // Меню-плашка
         this.menuCard = document.createElement('div');
         this.menuCard.style.width = 'min(90vw, 420px)';
