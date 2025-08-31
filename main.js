@@ -15,41 +15,42 @@ function initSoundSDKIntegration(game) {
     window.gamePushSDK.sounds.on('mute', () => {
         console.log('[Sound SDK] mute: Отключаем все звуки (музыка и эффекты).');
         if (game.backgroundMusic && game.backgroundMusic.isPlaying) game.backgroundMusic.pause();
-        game.musicPlaying = false;
+        game.musicPlaying = false; // Синхронизируем состояние
         uiUpdateMusicMenu(game, false);
-        if (game.tapSound && game.tapSound.isPlaying) game.tapSound.pause();
-        if (game.mergeSound && game.mergeSound.isPlaying) game.mergeSound.pause();
     });
     window.gamePushSDK.sounds.on('mute:music', () => {
         console.log('[Sound SDK] mute:music: Отключаем только музыку.');
         if (game.backgroundMusic && game.backgroundMusic.isPlaying) game.backgroundMusic.pause();
-        game.musicPlaying = false;
+        game.musicPlaying = false; // Синхронизируем состояние
         uiUpdateMusicMenu(game, false);
     });
-    window.gamePushSDK.sounds.on('mute:sfx', () => {
-        console.log('[Sound SDK] mute:sfx: Отключаем только эффекты.');
-        if (game.tapSound && game.tapSound.isPlaying) game.tapSound.pause();
-        if (game.mergeSound && game.mergeSound.isPlaying) game.mergeSound.pause();
-    });
+    
     window.gamePushSDK.sounds.on('unmute', () => {
-        console.log('[Sound SDK] unmute: Включаем все звуки (музыка и эффекты).');
-        if (game.backgroundMusic && !window.gamePushSDK.sounds.isMusicMuted && game.musicShouldBePlaying()) {
-            game.backgroundMusic.play();
-            game.musicPlaying = true;
-            uiUpdateMusicMenu(game, true);
+        console.log('[Sound SDK] unmute: Включаем все звуки.');
+        // Возобновляем музыку только если она должна играть
+        if (game.musicShouldBePlaying() && game.backgroundMusic) {
+             if (!game.backgroundMusic.isPlaying) game.backgroundMusic.play();
+             game.musicPlaying = true;
+             uiUpdateMusicMenu(game, true);
         }
     });
     window.gamePushSDK.sounds.on('unmute:music', () => {
         console.log('[Sound SDK] unmute:music: Включаем только музыку.');
-        if (game.backgroundMusic && !window.gamePushSDK.sounds.isMusicMuted && game.musicShouldBePlaying()) {
-            game.backgroundMusic.play();
-            game.musicPlaying = true;
-            uiUpdateMusicMenu(game, true);
+        if (game.musicShouldBePlaying() && game.backgroundMusic) {
+             if (!game.backgroundMusic.isPlaying) game.backgroundMusic.play();
+             game.musicPlaying = true;
+             uiUpdateMusicMenu(game, true);
         }
+    });
+
+    // Эти события не требуют действий, т.к. mute/unmute их покрывают
+    window.gamePushSDK.sounds.on('mute:sfx', () => {
+        console.log('[Sound SDK] mute:sfx: Отключаем только эффекты.');
     });
     window.gamePushSDK.sounds.on('unmute:sfx', () => {
         console.log('[Sound SDK] unmute:sfx: Включаем только эффекты.');
     });
+
     console.log('[Sound SDK] Initial states:',
         'isMuted:', window.gamePushSDK.sounds.isMuted,
         'isMusicMuted:', window.gamePushSDK.sounds.isMusicMuted,
@@ -72,36 +73,29 @@ function uiUpdateGlowMenu(game, isBright) {
 
 function initVisibilityEvents(game) {
     game._wasMutedByVisibility = false;
-    document.addEventListener('visibilitychange', () => {
+    const handleVisibilityChange = () => {
+        if (!window.gamePushSDK) return;
+
         if (document.hidden) {
-            if (window.gamePushSDK && !window.gamePushSDK.sounds.isMuted) {
+            // Если звук был включен, выключаем его и запоминаем это
+            if (!window.gamePushSDK.sounds.isMuted) {
                 window.gamePushSDK.sounds.mute();
-                game._wasMutedByVisibility = true; // Запоминаем, что звук выключен из-за неактивности
+                game._wasMutedByVisibility = true;
                 console.log('[main.js] Вкладка скрыта, звук поставлен на паузу через SDK.');
             }
         } else {
-            // Возобновляем звук, только если он был выключен из-за неактивности
-            if (window.gamePushSDK && game._wasMutedByVisibility) {
+            // Если вкладка стала видимой и звук был выключен нами, включаем его обратно
+            if (game._wasMutedByVisibility) {
                 window.gamePushSDK.sounds.unmute();
-                game._wasMutedByVisibility = false; // Сбрасываем флаг
+                game._wasMutedByVisibility = false;
                 console.log('[main.js] Вкладка снова активна, восстанавливаем звук через SDK.');
             }
         }
-    });
-    window.addEventListener('blur', () => {
-        if (window.gamePushSDK && !window.gamePushSDK.sounds.isMuted) {
-            window.gamePushSDK.sounds.mute();
-            game._wasMutedByVisibility = true;
-            console.log('[main.js] Окно браузера потеряло фокус, звук поставлен на паузу через SDK.');
-        }
-    });
-    window.addEventListener('focus', () => {
-        if (window.gamePushSDK && game._wasMutedByVisibility) {
-            window.gamePushSDK.sounds.unmute();
-            game._wasMutedByVisibility = false;
-            console.log('[main.js] Окно браузера снова в фокусе, восстанавливаем звук через SDK.');
-        }
-    });
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleVisibilityChange);
+    window.addEventListener('focus', handleVisibilityChange);
 }
 
 // --- GamePush: Функция ожидания SDK и вызова gameStart() ---
@@ -195,7 +189,8 @@ async function startGameAfterSDK() {
         // --- Настраиваем UI callbacks ---
         function setupGameListeners() {
             ui.setResetCallback(function() {
-                return game.reset();
+                ui.showMenu(false); // После сброса показываем меню с кнопкой "Играть"
+                game.reset();
             });
 
             // --- Новая кнопка Save на игровом поле ---
@@ -243,18 +238,19 @@ async function startGameAfterSDK() {
             // --- Музыка на меню ---
             ui.setMenuMusicCallback(function() {
                 if (window.gamePushSDK) {
+                    // Просто инвертируем состояние в SDK
                     if (window.gamePushSDK.sounds.isMusicMuted) {
                         window.gamePushSDK.sounds.unmuteMusic();
-                        game.musicPlaying = true;
                         console.log("[main.js] Menu Music button: Включить музыку через SDK.");
                     } else {
                         window.gamePushSDK.sounds.muteMusic();
-                        game.musicPlaying = false;
                         console.log("[main.js] Menu Music button: Отключить музыку через SDK.");
                     }
                 } else {
+                    // Если SDK нет, используем старый метод
                     game.toggleMusic();
                 }
+                // Обновляем состояние и кнопку из game, т.к. событие SDK обновит game.musicPlaying
                 uiUpdateMusicMenu(game, game.musicPlaying);
                 return game.musicPlaying;
             });

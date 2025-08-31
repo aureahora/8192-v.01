@@ -105,7 +105,7 @@ export var Game = /*#__PURE__*/ function() {
 
         // === ВАЖНО: ФЛАГ АКТИВНОСТИ ВВОДА ===
         this.isInputActive = true;
-        this._isFirstPlay = true; // Флаг для контроля первого запуска музыки
+        this._isFirstPlay = true; // Флаг для контроля первого запуска
 
         // --- CloudSaves: инициализация из облака, падение на локальное если облако пусто ---
         this.highScore = cloudLoadedStats?.best ?? parseInt(localStorage.getItem('highScore') || '0', 10);
@@ -166,7 +166,7 @@ export var Game = /*#__PURE__*/ function() {
         {
             key: "musicShouldBePlaying",
             value: function musicShouldBePlaying() {
-                // Музыка должна играть, если она включена и это не самый первый запуск
+                // Музыка должна играть, если она включена и игра уже началась (не первый экран меню)
                 return this.musicPlaying && !this._isFirstPlay;
             }
         },
@@ -366,6 +366,7 @@ export var Game = /*#__PURE__*/ function() {
                     _this.backgroundMusic.setVolume(_this.originalMusicVolume);
                     _this.musicDuration = buffer.duration;
                     _this.ui.updateMusicButtonText(_this.musicPlaying);
+                    // ИСПРАВЛЕНО: Не запускаем музыку здесь. Только загружаем.
                 }, undefined, function(error) {
                     return console.error('[Game.js] Error loading background music:', error);
                 });
@@ -388,41 +389,46 @@ export var Game = /*#__PURE__*/ function() {
         {
             key: "toggleMusic",
             value: function toggleMusic() {
-                if (!window.gamePushSDK) {
-                    if (!this.backgroundMusic || !this.backgroundMusic.buffer) {
-                        return;
-                    }
-                    clearTimeout(this.fadeTimeout);
-                    this.isFadingOut = false;
-                    if (this.musicPlaying) {
-                        this.backgroundMusic.pause();
-                        this.musicPlaying = false;
-                        this.backgroundMusic.setVolume(this.originalMusicVolume);
-                    } else {
-                        var playMusic = () => {
-                            this.backgroundMusic.setVolume(this.originalMusicVolume);
-                            this.backgroundMusic.play();
-                            this.musicPlaying = true;
-                            this.isFadingOut = false;
-                            this.ui.updateMusicButtonText(this.musicPlaying);
-                        };
-                        if (this.audioListener.context.state === 'suspended') {
-                            this.audioListener.context.resume().then(() => playMusic())
-                                .catch(e => console.error("[Game.js] Error resuming AudioContext:", e));
-                        } else {
-                            playMusic();
-                        }
-                    }
-                    if (this.audioListener.context.state !== 'suspended') {
-                        this.ui.updateMusicButtonText(this.musicPlaying);
-                    }
+                if (!this.backgroundMusic || !this.backgroundMusic.buffer) {
                     return;
                 }
-                if (window.gamePushSDK.sounds.isMusicMuted) {
-                    window.gamePushSDK.sounds.unmuteMusic();
+            
+                this.musicPlaying = !this.musicPlaying;
+                clearTimeout(this.fadeTimeout);
+                this.isFadingOut = false;
+            
+                if (this.musicPlaying) {
+                    // Если музыка должна играть, но игра еще не началась, просто выходим.
+                    // Метод start() сам ее запустит, когда придет время.
+                    if (this._isFirstPlay) {
+                        console.log("[Game.js] Music toggled ON, but will start after 'Play' is clicked.");
+                        this.ui.updateMusicButtonText(this.musicPlaying);
+                        return;
+                    }
+            
+                    const playMusic = () => {
+                        this.backgroundMusic.setVolume(this.originalMusicVolume);
+                        if (!this.backgroundMusic.isPlaying) {
+                            this.backgroundMusic.play();
+                        }
+                        this.isFadingOut = false;
+                        this.ui.updateMusicButtonText(this.musicPlaying);
+                    };
+            
+                    if (this.audioListener.context.state === 'suspended') {
+                        this.audioListener.context.resume().then(playMusic).catch(e => console.error("[Game.js] Error resuming AudioContext:", e));
+                    } else {
+                        playMusic();
+                    }
                 } else {
-                    window.gamePushSDK.sounds.muteMusic();
+                    // Если выключаем, то всегда выключаем
+                    if (this.backgroundMusic.isPlaying) {
+                        this.backgroundMusic.pause();
+                    }
+                    this.backgroundMusic.setVolume(this.originalMusicVolume);
                 }
+            
+                this.ui.updateMusicButtonText(this.musicPlaying);
             }
         },
         {
@@ -449,11 +455,14 @@ export var Game = /*#__PURE__*/ function() {
                 this.ui.updateMusicButtonText(this.musicPlaying);
                 this.sceneSetup.setGlowMode(this.isGlowBright);
 
-                if (this.musicShouldBePlaying() && this.backgroundMusic && !this.backgroundMusic.isPlaying) {
-                    if (window.gamePushSDK && !window.gamePushSDK.sounds.isMusicMuted) {
+                // ИСПРАВЛЕНО: Логика запуска музыки
+                if (this.musicPlaying && this.backgroundMusic && !this.backgroundMusic.isPlaying) {
+                     if (window.gamePushSDK && !window.gamePushSDK.sounds.isMusicMuted) {
                         this.backgroundMusic.play();
+                        console.log("[Game.js] Starting music via SDK.");
                     } else if (!window.gamePushSDK) {
                         this.backgroundMusic.play();
+                        console.log("[Game.js] Starting music (no SDK).");
                     }
                 }
                 
@@ -486,12 +495,15 @@ export var Game = /*#__PURE__*/ function() {
                 if (this.backgroundMusic && this.backgroundMusic.isPlaying) {
                     this.backgroundMusic.stop();
                 }
-                this.musicPlaying = false;
+                // При сбросе игры, музыка не должна включаться автоматически.
+                // Пользователь сам включит ее при желании.
+                // this.musicPlaying = false; 
                 this.isFadingOut = false;
                 if (this.backgroundMusic) {
                     this.backgroundMusic.setVolume(this.originalMusicVolume);
                 }
                 this.ui.updateMusicButtonText(this.musicPlaying);
+                this._isFirstPlay = true; // Сброс игры похож на первый запуск
                 callGameplayStart();
             }
         },
