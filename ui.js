@@ -48,6 +48,11 @@ export var UI = /*#__PURE__*/ function() {
         this.uiContainer.style.display = 'flex';
         this.uiContainer.style.boxSizing = 'border-box';
 
+        // === Блокировка контекстного меню на верхней панели ===
+        this.uiContainer.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+        });
+
         // Score Display
         this.scoreElement = document.createElement('div');
         this.scoreElement.id = 'score';
