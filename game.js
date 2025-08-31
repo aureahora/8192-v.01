@@ -105,6 +105,7 @@ export var Game = /*#__PURE__*/ function() {
 
         // === ВАЖНО: ФЛАГ АКТИВНОСТИ ВВОДА ===
         this.isInputActive = true;
+        this._isFirstPlay = true; // Флаг для контроля первого запуска музыки
 
         // --- CloudSaves: инициализация из облака, падение на локальное если облако пусто ---
         this.highScore = cloudLoadedStats?.best ?? parseInt(localStorage.getItem('highScore') || '0', 10);
@@ -162,6 +163,13 @@ export var Game = /*#__PURE__*/ function() {
         console.log("[Game.js] Game instance created.");
     }
     _create_class(Game, [
+        {
+            key: "musicShouldBePlaying",
+            value: function musicShouldBePlaying() {
+                // Музыка должна играть, если она включена и это не самый первый запуск
+                return this.musicPlaying && !this._isFirstPlay;
+            }
+        },
         // === ДОБАВЛЕН МЕТОД ДЛЯ ВКЛ/ВЫКЛ ВВОДА ===
         {
             key: "setInputActive",
@@ -358,20 +366,6 @@ export var Game = /*#__PURE__*/ function() {
                     _this.backgroundMusic.setVolume(_this.originalMusicVolume);
                     _this.musicDuration = buffer.duration;
                     _this.ui.updateMusicButtonText(_this.musicPlaying);
-
-                    if (window.gamePushSDK) {
-                        if (!window.gamePushSDK.sounds.isMusicMuted) {
-                            _this.musicPlaying = true;
-                            _this.backgroundMusic.play();
-                            _this.ui.updateMusicButtonText(true);
-                        } else {
-                            _this.musicPlaying = false;
-                            _this.backgroundMusic.pause();
-                            _this.ui.updateMusicButtonText(false);
-                        }
-                    } else if (_this.musicPlaying) {
-                        _this.toggleMusic();
-                    }
                 }, undefined, function(error) {
                     return console.error('[Game.js] Error loading background music:', error);
                 });
@@ -434,42 +428,43 @@ export var Game = /*#__PURE__*/ function() {
         {
             key: "start",
             value: function start() {
-                const hasValidProgress = this.progressRestored && this.progress && 
-                                        this.progress.grid && 
-                                        Array.isArray(this.progress.grid) && 
-                                        this.progress.grid.length > 0;
-                if (hasValidProgress) {
-                    console.log('[Game.js] Запуск игры с восстановленным прогрессом. Кубиков:', this.progress.grid.length);
-                    this.updateScore(this.score);
-                    this.ui.updateHighScore(this.highScore);
-                    this.ui.updateHighestTile(this.highestTileValue);
-                    this.ui.updateGamesPlayed(this.gamesPlayed);
-                    this.ui.updateGlowButtonText(this.isGlowBright);
-                    this.ui.updateMusicButtonText(this.musicPlaying);
-                    this.sceneSetup.setGlowMode(this.isGlowBright);
-                    if (this.musicPlaying && this.backgroundMusic && !this.backgroundMusic.isPlaying) {
-                        if (window.gamePushSDK) {
-                            if (!window.gamePushSDK.sounds.isMusicMuted) {
-                                this.backgroundMusic.play();
-                            }
-                        } else {
-                            this.backgroundMusic.play();
-                        }
+                const isNewGame = !(this.progressRestored && this.progress && this.progress.grid && Array.isArray(this.progress.grid) && this.progress.grid.length > 0);
+
+                if (isNewGame) {
+                    if (this._isFirstPlay) { // Только если это самый первый старт
+                        this.gamesPlayed++;
                     }
-                    this.gameState = 'playing';
-                } else {
-                    this.gamesPlayed++;
-                    this.ui.updateGamesPlayed(this.gamesPlayed);
                     this.grid.clear();
-                    const tile1 = this.grid.addRandomTile();
-                    const tile2 = this.grid.addRandomTile();
+                    this.grid.addRandomTile();
+                    this.grid.addRandomTile();
                     this.score = 0;
                     this.updateScore(0);
-                    this.gameState = 'playing';
                 }
+
+                this.ui.updateGamesPlayed(this.gamesPlayed);
+                this.updateScore(this.score);
+                this.ui.updateHighScore(this.highScore);
+                this.ui.updateHighestTile(this.highestTileValue);
+                this.ui.updateGlowButtonText(this.isGlowBright);
+                this.ui.updateMusicButtonText(this.musicPlaying);
+                this.sceneSetup.setGlowMode(this.isGlowBright);
+
+                if (this.musicShouldBePlaying() && this.backgroundMusic && !this.backgroundMusic.isPlaying) {
+                    if (window.gamePushSDK && !window.gamePushSDK.sounds.isMusicMuted) {
+                        this.backgroundMusic.play();
+                    } else if (!window.gamePushSDK) {
+                        this.backgroundMusic.play();
+                    }
+                }
+                
+                this.gameState = 'playing';
                 this.animate();
-                callGameStartWhenReady();
+
+                if (this._isFirstPlay) {
+                    callGameStartWhenReady();
+                }
                 callGameplayStart();
+                this._isFirstPlay = false; // После первого вызова start, это уже не первый запуск
             }
         },
         {

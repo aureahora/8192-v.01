@@ -33,7 +33,7 @@ function initSoundSDKIntegration(game) {
     });
     window.gamePushSDK.sounds.on('unmute', () => {
         console.log('[Sound SDK] unmute: Включаем все звуки (музыка и эффекты).');
-        if (game.backgroundMusic && !window.gamePushSDK.sounds.isMusicMuted) {
+        if (game.backgroundMusic && !window.gamePushSDK.sounds.isMusicMuted && game.musicShouldBePlaying()) {
             game.backgroundMusic.play();
             game.musicPlaying = true;
             uiUpdateMusicMenu(game, true);
@@ -41,7 +41,7 @@ function initSoundSDKIntegration(game) {
     });
     window.gamePushSDK.sounds.on('unmute:music', () => {
         console.log('[Sound SDK] unmute:music: Включаем только музыку.');
-        if (game.backgroundMusic && !window.gamePushSDK.sounds.isMusicMuted) {
+        if (game.backgroundMusic && !window.gamePushSDK.sounds.isMusicMuted && game.musicShouldBePlaying()) {
             game.backgroundMusic.play();
             game.musicPlaying = true;
             uiUpdateMusicMenu(game, true);
@@ -76,18 +76,15 @@ function initVisibilityEvents(game) {
         if (document.hidden) {
             if (window.gamePushSDK && !window.gamePushSDK.sounds.isMuted) {
                 window.gamePushSDK.sounds.mute();
-                game._wasMutedByVisibility = true;
-                console.log('[main.js] Вкладка скрыта, музыка поставлена на паузу через SDK.');
+                game._wasMutedByVisibility = true; // Запоминаем, что звук выключен из-за неактивности
+                console.log('[main.js] Вкладка скрыта, звук поставлен на паузу через SDK.');
             }
         } else {
+            // Возобновляем звук, только если он был выключен из-за неактивности
             if (window.gamePushSDK && game._wasMutedByVisibility) {
-                if (!window.gamePushSDK.sounds.isMuted) {
-                    window.gamePushSDK.sounds.unmute();
-                    console.log('[main.js] Вкладка снова активна, восстанавливаем звук через SDK.');
-                }
-                game._wasMutedByVisibility = false;
-            } else {
-                console.log('[main.js] Вкладка снова активна, но звук не был выключен SDK.');
+                window.gamePushSDK.sounds.unmute();
+                game._wasMutedByVisibility = false; // Сбрасываем флаг
+                console.log('[main.js] Вкладка снова активна, восстанавливаем звук через SDK.');
             }
         }
     });
@@ -95,16 +92,14 @@ function initVisibilityEvents(game) {
         if (window.gamePushSDK && !window.gamePushSDK.sounds.isMuted) {
             window.gamePushSDK.sounds.mute();
             game._wasMutedByVisibility = true;
-            console.log('[main.js] Окно браузера потеряло фокус, музыка поставлена на паузу через SDK.');
+            console.log('[main.js] Окно браузера потеряло фокус, звук поставлен на паузу через SDK.');
         }
     });
     window.addEventListener('focus', () => {
         if (window.gamePushSDK && game._wasMutedByVisibility) {
-            if (!window.gamePushSDK.sounds.isMuted) {
-                window.gamePushSDK.sounds.unmute();
-                console.log('[main.js] Окно браузера снова в фокусе, восстанавливаем звук через SDK.');
-            }
+            window.gamePushSDK.sounds.unmute();
             game._wasMutedByVisibility = false;
+            console.log('[main.js] Окно браузера снова в фокусе, восстанавливаем звук через SDK.');
         }
     });
 }
@@ -240,7 +235,7 @@ async function startGameAfterSDK() {
                 // Обновляем внешний вид кнопки
                 uiUpdateGlowMenu(game, game.isGlowBright);
                 
-                // --- УДАЛЕНО: Сохранение настройки в облако ---
+                // --- Сохранение настройки в облако происходит только по кнопке "Save" ---
                 
                 return game.isGlowBright;
             });
@@ -267,26 +262,19 @@ async function startGameAfterSDK() {
             // --- Кнопка Play/Continue в меню ---
             ui.setMenuPlayCallback(function() {
                 ui.hideMenu();
-                if (isFirstMenu) {
-                    // Первый запуск, начинаем игру
-                    game.start();
-                    isFirstMenu = false;
+                // --- ПОКАЗ РЕКЛАМЫ ПЕРЕД ПРОДОЛЖЕНИЕМ ---
+                if (window.gamePushSDK && window.gamePushSDK.ads && typeof window.gamePushSDK.ads.showFullscreen === 'function' && !isFirstMenu) {
+                    window.gamePushSDK.ads.showFullscreen()
+                        .catch((err) => {
+                            console.warn('[main.js] Ошибка показа рекламы, продолжаем игру:', err);
+                        })
+                        .finally(() => {
+                             game.start(); // Запускаем игру в любом случае
+                        });
                 } else {
-                    // Продолжаем игру (можно добавить логику паузы/возврата)
-                    // --- ПОКАЗ РЕКЛАМЫ ПЕРЕД ПРОДОЛЖЕНИЕМ ---
-                    if (window.gamePushSDK && window.gamePushSDK.ads && typeof window.gamePushSDK.ads.showFullscreen === 'function') {
-                        window.gamePushSDK.ads.showFullscreen()
-                            .then(() => {
-                                game.start();
-                            })
-                            .catch((err) => {
-                                console.warn('[main.js] Ошибка показа рекламы, продолжаем игру:', err);
-                                game.start();
-                            });
-                    } else {
-                        game.start();
-                    }
+                    game.start(); // Запускаем без рекламы (первый раз или если SDK нет)
                 }
+                isFirstMenu = false; // После первого клика это уже не первый запуск
             });
         }
 
