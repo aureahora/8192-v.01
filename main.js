@@ -189,6 +189,13 @@ async function startGameAfterSDK() {
         // Создание экземпляра игры с данными из облака
         game = new Game(renderDiv, ui, loadedFont, cloudStats);
 
+        // === Синхронизация фона и частиц с состоянием Glow при первой загрузке ===
+        // Это ключевой шаг: гарантируем, что сцена и частицы соответствуют состоянию кнопки
+        if (game && game.sceneSetup) {
+            game.sceneSetup.setGlowMode(game.isGlowBright);
+            uiUpdateGlowMenu(game, game.isGlowBright);
+        }
+
         // --- ВАЖНО: Связываем UI и Game для управления вводом при открытии/закрытии меню ---
         ui.setMenuStateChangeCallback(function(isMenuOpen) {
             game.setInputActive(!isMenuOpen);
@@ -223,9 +230,7 @@ async function startGameAfterSDK() {
 
             // --- Glow/Сияние на меню ---
             ui.setMenuGlowCallback(function() {
-                // Добавляем безопасную проверку на существование game и sceneSetup
                 if (!game || !game.sceneSetup) {
-                    // Можно визуально показать подсказку — например, временно изменить текст кнопки
                     ui.menuGlowButton.textContent = ui.t.glow + " (Недоступно)";
                     setTimeout(() => {
                         ui.menuGlowButton.textContent = ui.t.glow;
@@ -235,7 +240,6 @@ async function startGameAfterSDK() {
                 game.isGlowBright = !game.isGlowBright;
                 game.sceneSetup.setGlowMode(game.isGlowBright);
                 uiUpdateGlowMenu(game, game.isGlowBright);
-                // Удалено сохранение в облако при нажатии кнопки "Сияние"
                 return game.isGlowBright;
             });
 
@@ -255,7 +259,6 @@ async function startGameAfterSDK() {
                     game.toggleMusic();
                 }
                 uiUpdateMusicMenu(game, game.musicPlaying);
-                // Удалено сохранение в облако при нажатии кнопки "Музыка"
                 return game.musicPlaying;
             });
 
@@ -270,20 +273,15 @@ async function startGameAfterSDK() {
                     // Продолжаем игру (можно добавить логику паузы/возврата)
                     // --- ПОКАЗ РЕКЛАМЫ ПЕРЕД ПРОДОЛЖЕНИЕМ ---
                     if (window.gamePushSDK && window.gamePushSDK.ads && typeof window.gamePushSDK.ads.showFullscreen === 'function') {
-                        // Показываем fullscreen рекламу
                         window.gamePushSDK.ads.showFullscreen()
                             .then(() => {
-                                // После успешного показа рекламы, продолжаем игру
                                 game.start();
                             })
                             .catch((err) => {
-                                // Если реклама не была показана (ошибка), всё равно продолжаем игру
                                 console.warn('[main.js] Ошибка показа рекламы, продолжаем игру:', err);
                                 game.start();
                             });
-                        // Можно также слушать событие, но промис — более надёжно для синхронизации
                     } else {
-                        // Если SDK или метод недоступен, просто продолжаем игру
                         game.start();
                     }
                 }
