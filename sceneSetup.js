@@ -275,71 +275,94 @@ export var SceneSetup = /*#__PURE__*/ function() {
         {
             // Starts the background transition
             key: "setGlowMode",
-            value: function setGlowMode(isBright) {
-                if (this.isTransitioning) return false; // Возвращаем false, если уже идет переход
-                
-                // Проверяем, что backgroundMaterial инициализирован
+            value: function setGlowMode(isBright, forceImmediate = false) {
+                if (this.isTransitioning && !forceImmediate) return false;
                 if (!this.backgroundMaterial || !this.backgroundMaterial.uniforms) {
                     console.warn("[SceneSetup] setGlowMode: backgroundMaterial не инициализирован");
                     return false;
                 }
-                
-                this.targetIsBright = isBright; // Store the final target state
-                // --- Immediately update particle base colors based on the target mode ---
-                if (this.particleGeometry && this.originalParticleBaseColors) {
-                    var baseColors = this.particleGeometry.userData.baseColors;
-                    var blackColor = new THREE.Color(0x000000); // Pure black for bright mode
-                    var particleCount = this.particleGeometry.userData.count;
+            
+                this.targetIsBright = isBright;
+            
+                if (forceImmediate) {
+                    this.isTransitioning = false;
+                    // Directly set final values for background
                     if (isBright) {
-                        // Bright Mode: Black, larger particles
-                        this.particlePoints.material.size = this.originalParticleSize * 1.3; // Increase size slightly
-                        this.particlePoints.material.opacity = this.originalParticleOpacity; // Keep original opacity for now
-                        for(var i = 0; i < particleCount; i++){
-                            var i3 = i * 3;
+                        this.backgroundMaterial.uniforms.brightnessFactor.value = 1.0;
+                        this.backgroundMaterial.uniforms.saturationFactor.value = 1.0;
+                        this.backgroundMaterial.uniforms.color1.value.copy(this.originalColors.color1);
+                        this.backgroundMaterial.uniforms.color2.value.copy(this.originalColors.color2);
+                    } else {
+                        this.backgroundMaterial.uniforms.brightnessFactor.value = 0.0;
+                        this.backgroundMaterial.uniforms.saturationFactor.value = 0.0;
+                        this.backgroundMaterial.uniforms.color1.value.set(0x000000);
+                        this.backgroundMaterial.uniforms.color2.value.set(0x000000);
+                    }
+            
+                    // Directly set final values for bloom
+                    if (this.bloomPass) {
+                        if (isBright) {
+                            this.bloomPass.strength = 0.5;
+                            this.bloomPass.threshold = 0.05;
+                            this.bloomPass.radius = 0.5;
+                        } else {
+                            this.bloomPass.strength = 0.6;
+                            this.bloomPass.threshold = 0.8;
+                            this.bloomPass.radius = 0.5;
+                        }
+                    }
+                } else {
+                    // Store starting values from current uniforms for background transition
+                    this.startBrightness = this.backgroundMaterial.uniforms.brightnessFactor.value;
+                    this.startSaturation = this.backgroundMaterial.uniforms.saturationFactor.value;
+                    this.startColor1.copy(this.backgroundMaterial.uniforms.color1.value);
+                    this.startColor2.copy(this.backgroundMaterial.uniforms.color2.value);
+            
+                    // Define target values for background transition based on desired mode
+                    if (isBright) {
+                        this.targetBrightness = 1.0;
+                        this.targetSaturation = 1.0;
+                        this.targetColor1.copy(this.originalColors.color1);
+                        this.targetColor2.copy(this.originalColors.color2);
+                    } else {
+                        this.targetBrightness = 0.0;
+                        this.targetSaturation = 0.0;
+                        this.targetColor1.set(0x000000);
+                        this.targetColor2.set(0x000000);
+                    }
+            
+                    this.isTransitioning = true;
+                    this.transitionStartTime = this.clock.getElapsedTime();
+                }
+            
+                // --- Particle Appearance Update (always happens immediately) ---
+                if (this.particleGeometry && this.originalParticleBaseColors && this.particlePoints) {
+                    const baseColors = this.particleGeometry.userData.baseColors;
+                    const blackColor = new THREE.Color(0x000000);
+                    const particleCount = this.particleGeometry.userData.count;
+            
+                    if (isBright) {
+                        this.particlePoints.material.size = this.originalParticleSize * 1.3;
+                        for (let i = 0; i < particleCount; i++) {
+                            const i3 = i * 3;
                             baseColors[i3] = blackColor.r;
                             baseColors[i3 + 1] = blackColor.g;
                             baseColors[i3 + 2] = blackColor.b;
                         }
                     } else {
-                        // Dark Mode: Restore original colors, size, and opacity
                         this.particlePoints.material.size = this.originalParticleSize;
-                        this.particlePoints.material.opacity = this.originalParticleOpacity;
-                        for(var i1 = 0; i1 < particleCount; i1++){
-                            var i31 = i1 * 3;
-                            baseColors[i31] = this.originalParticleBaseColors[i31];
-                            baseColors[i31 + 1] = this.originalParticleBaseColors[i31 + 1];
-                            baseColors[i31 + 2] = this.originalParticleBaseColors[i31 + 2];
+                        for (let i = 0; i < particleCount; i++) {
+                            const i3 = i * 3;
+                            baseColors[i3] = this.originalParticleBaseColors[i3];
+                            baseColors[i3 + 1] = this.originalParticleBaseColors[i3 + 1];
+                            baseColors[i3 + 2] = this.originalParticleBaseColors[i3 + 2];
                         }
                     }
-                    // Mark the color attribute buffer as needing an update
                     this.particleGeometry.attributes.color.needsUpdate = true;
-                    this.particlePoints.material.needsUpdate = true; // Update material properties too
+                    this.particlePoints.material.needsUpdate = true;
                 }
-                // --- End Particle Appearance Update ---
-                // Store starting values from current uniforms for background transition
-                this.startBrightness = this.backgroundMaterial.uniforms.brightnessFactor.value;
-                this.startSaturation = this.backgroundMaterial.uniforms.saturationFactor.value;
-                this.startColor1.copy(this.backgroundMaterial.uniforms.color1.value);
-                this.startColor2.copy(this.backgroundMaterial.uniforms.color2.value);
-                // Define target values for background transition based on desired mode
-                if (isBright) {
-                    // **Bright Mode: Restore original vaporwave colors**
-                    this.targetBrightness = 1.0;
-                    this.targetSaturation = 1.0; // Full saturation
-                    this.targetColor1.copy(this.originalColors.color1); // Original color 1
-                    this.targetColor2.copy(this.originalColors.color2); // Original color 2
-                } else {
-                    // **Dark Mode: Pure Black Background**
-                    this.targetBrightness = 0.0; // Set brightness to 0 for black
-                    this.targetSaturation = 0.0; // Set saturation to 0 as well (optional, but reinforces black)
-                    // Target colors don't strictly matter when brightness is 0, but setting them doesn't hurt
-                    this.targetColor1.set(0x000000); // Target black
-                    this.targetColor2.set(0x000000); // Target black
-                }
-                this.isTransitioning = true;
-                this.transitionStartTime = this.clock.getElapsedTime(); // Use internal clock
-                
-                return true; // Возвращаем true, если переход запущен успешно
+            
+                return true;
             }
         },
         {

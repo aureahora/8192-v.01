@@ -146,7 +146,10 @@ export var Game = /*#__PURE__*/ function() {
         this.updateScore(this.score);
         this.ui.updateHighestTile(this.highestTileValue);
         this.ui.updateGamesPlayed(this.gamesPlayed);
-        this.sceneSetup.setGlowMode(this.isGlowBright);
+        
+        // --- ИСПРАВЛЕНИЕ: Принудительная установка состояния сияния при инициализации ---
+        this.sceneSetup.setGlowMode(this.isGlowBright, true); // true = force immediate state
+        
         this.ui.updateGlowButtonText(this.isGlowBright);
         this.ui.updateMusicButtonText(this.musicPlaying);
 

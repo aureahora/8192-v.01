@@ -189,83 +189,6 @@ async function startGameAfterSDK() {
         // Создание экземпляра игры с данными из облака
         game = new Game(renderDiv, ui, loadedFont, cloudStats);
 
-        // === Синхронизация фона и частиц с состоянием Glow при первой загрузке ===
-        // Это ключевой шаг: гарантируем, что сцена и частицы соответствуют состоянию кнопки
-        if (game && game.sceneSetup) {
-            // ИСПРАВЛЕНИЕ: Принудительное обновление начальных состояний шейдеров
-            if (game.sceneSetup.backgroundMaterial) {
-                // Явная установка начальных значений, соответствующих текущему режиму
-                if (game.isGlowBright) {
-                    // Яркий режим
-                    game.sceneSetup.backgroundMaterial.uniforms.brightnessFactor.value = 1.0;
-                    game.sceneSetup.backgroundMaterial.uniforms.saturationFactor.value = 1.0;
-                    game.sceneSetup.backgroundMaterial.uniforms.color1.value.copy(game.sceneSetup.originalColors.color1);
-                    game.sceneSetup.backgroundMaterial.uniforms.color2.value.copy(game.sceneSetup.originalColors.color2);
-                    
-                    // Установка bloom эффекта для яркого режима
-                    if (game.sceneSetup.bloomPass) {
-                        game.sceneSetup.bloomPass.strength = 0.5;
-                        game.sceneSetup.bloomPass.threshold = 0.05;
-                        game.sceneSetup.bloomPass.radius = 0.5;
-                    }
-                } else {
-                    // Темный режим
-                    game.sceneSetup.backgroundMaterial.uniforms.brightnessFactor.value = 0.0;
-                    game.sceneSetup.backgroundMaterial.uniforms.saturationFactor.value = 0.0;
-                    game.sceneSetup.backgroundMaterial.uniforms.color1.value.set(0x000000);
-                    game.sceneSetup.backgroundMaterial.uniforms.color2.value.set(0x000000);
-                    
-                    // Установка bloom эффекта для темного режима
-                    if (game.sceneSetup.bloomPass) {
-                        game.sceneSetup.bloomPass.strength = 0.6;
-                        game.sceneSetup.bloomPass.threshold = 0.8;
-                        game.sceneSetup.bloomPass.radius = 0.5;
-                    }
-                }
-                
-                // Явное обновление частиц в соответствии с режимом
-                if (game.sceneSetup.particleGeometry && game.sceneSetup.originalParticleBaseColors) {
-                    const baseColors = game.sceneSetup.particleGeometry.userData.baseColors;
-                    const blackColor = new THREE.Color(0x000000);
-                    const particleCount = game.sceneSetup.particleGeometry.userData.count;
-                    
-                    if (game.isGlowBright) {
-                        // Черные частицы для яркого режима
-                        for (let i = 0; i < particleCount; i++) {
-                            const i3 = i * 3;
-                            baseColors[i3] = blackColor.r;
-                            baseColors[i3 + 1] = blackColor.g;
-                            baseColors[i3 + 2] = blackColor.b;
-                        }
-                        
-                        if (game.sceneSetup.particlePoints) {
-                            game.sceneSetup.particlePoints.material.size = game.sceneSetup.originalParticleSize * 1.3;
-                        }
-                    } else {
-                        // Оригинальные цвета для темного режима
-                        for (let i = 0; i < particleCount; i++) {
-                            const i3 = i * 3;
-                            baseColors[i3] = game.sceneSetup.originalParticleBaseColors[i3];
-                            baseColors[i3 + 1] = game.sceneSetup.originalParticleBaseColors[i3 + 1];
-                            baseColors[i3 + 2] = game.sceneSetup.originalParticleBaseColors[i3 + 2];
-                        }
-                        
-                        if (game.sceneSetup.particlePoints) {
-                            game.sceneSetup.particlePoints.material.size = game.sceneSetup.originalParticleSize;
-                        }
-                    }
-                    
-                    game.sceneSetup.particleGeometry.attributes.color.needsUpdate = true;
-                    if (game.sceneSetup.particlePoints && game.sceneSetup.particlePoints.material) {
-                        game.sceneSetup.particlePoints.material.needsUpdate = true;
-                    }
-                }
-            }
-            
-            // После принудительной инициализации, обновляем внешний вид кнопки
-            uiUpdateGlowMenu(game, game.isGlowBright);
-        }
-
         // --- ВАЖНО: Связываем UI и Game для управления вводом при открытии/закрытии меню ---
         ui.setMenuStateChangeCallback(function(isMenuOpen) {
             game.setInputActive(!isMenuOpen);
@@ -317,13 +240,7 @@ async function startGameAfterSDK() {
                 // Обновляем внешний вид кнопки
                 uiUpdateGlowMenu(game, game.isGlowBright);
                 
-                // Сохраняем настройку в облако
-                try {
-                    CloudSaves.save('glow', game.isGlowBright ? 0 : 1)
-                        .catch(e => console.warn("[main.js] Ошибка сохранения настройки Сияния:", e));
-                } catch (e) {
-                    console.warn("[main.js] Исключение при сохранении настройки Сияния:", e);
-                }
+                // --- УДАЛЕНО: Сохранение настройки в облако ---
                 
                 return game.isGlowBright;
             });
