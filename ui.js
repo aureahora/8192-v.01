@@ -25,7 +25,7 @@ export var UI = /*#__PURE__*/ function() {
         var _this = this;
         _class_call_check(this, UI);
         this.container = container;
-        this.onMenuStateChange = null; // Новый колбэк для отслеживания состояния меню
+        this.onMenuStateChange = null;
 
         // Определяем язык
         const lang = getUserLanguage();
@@ -79,7 +79,7 @@ export var UI = /*#__PURE__*/ function() {
         this.infoContainer.style.flexDirection = 'column';
         this.infoContainer.style.alignItems = 'flex-start';
 
-        // Stats Container (grouping the stats elements)
+        // Stats Container
         this.statsContainer = document.createElement('div');
         this.statsContainer.id = 'statsContainer';
         this.statsContainer.style.display = 'flex';
@@ -102,13 +102,12 @@ export var UI = /*#__PURE__*/ function() {
         this.menuButton.isActive = false;
         this.menuButton.style.transition = 'background-color 0.25s cubic-bezier(.4,0,.2,1)';
 
-        // Reset Button using helper
+        // Reset Button
         this.resetButton = this._createButton('resetButton', this.t.reset, '#ff8c00');
-        // Save Button вместо Glow/Music
+        // Save Button
         this.saveButton = this._createButton('saveButton', this.t.save, '#28a745');
         this.saveButton.style.backgroundColor = '#28a745';
 
-        // --- Add buttons in desired order: Menu, Reset, Save ---
         this.buttonsContainer.appendChild(this.menuButton);
         this.buttonsContainer.appendChild(this.resetButton);
         this.buttonsContainer.appendChild(this.saveButton);
@@ -143,8 +142,8 @@ export var UI = /*#__PURE__*/ function() {
         this.menuOverlay.style.zIndex = '200';
         this.menuOverlay.style.backdropFilter = 'blur(7px)';
         this.menuOverlay.style.transition = 'opacity 0.3s cubic-bezier(.4,0,.2,1)';
+        this.menuOverlay.style.boxSizing = 'border-box';
 
-        // === Блокировка контекстного меню ===
         this.menuOverlay.addEventListener('contextmenu', function(e) {
             e.preventDefault();
         });
@@ -162,6 +161,7 @@ export var UI = /*#__PURE__*/ function() {
         this.menuCard.style.display = 'flex';
         this.menuCard.style.flexDirection = 'column';
         this.menuCard.style.alignItems = 'center';
+        this.menuCard.style.boxSizing = 'border-box';
 
         // Заголовок меню
         this.menuTitle = document.createElement('div');
@@ -174,15 +174,43 @@ export var UI = /*#__PURE__*/ function() {
         this.menuTitle.style.textShadow = '0 0 16px #39FF14, 0 1px 0 #fff, 0 4px 24px #9D00FF';
         this.menuTitle.style.marginBottom = '36px';
 
-        // --- Меню: Кнопки Сияние/Музыка/Play ---
+        // --- Структура меню: колонка и строка
+        this.menuButtonsColumn = document.createElement('div');
+        this.menuButtonsColumn.style.display = 'flex';
+        this.menuButtonsColumn.style.flexDirection = 'column';
+        this.menuButtonsColumn.style.alignItems = 'center';
+        this.menuButtonsColumn.style.width = '100%';
+        this.menuButtonsColumn.style.boxSizing = 'border-box';
+
+        // Кнопка Play/Continue (по центру)
+        this.menuPlayButton = document.createElement('button');
+        this.menuPlayButton.id = 'menuPlayButton';
+        this.menuPlayButton.textContent = this.t.play;
+        this.menuPlayButton.style.fontSize = '1.25em';
+        this.menuPlayButton.style.fontWeight = 'bold';
+        this.menuPlayButton.style.padding = '12px 40px';
+        this.menuPlayButton.style.borderRadius = '18px';
+        this.menuPlayButton.style.border = 'none';
+        this.menuPlayButton.style.background = 'linear-gradient(90deg, #39FF14 30%, #FFD700 100%)';
+        this.menuPlayButton.style.color = '#222';
+        this.menuPlayButton.style.boxShadow = '0 2px 12px #00CED1';
+        this.menuPlayButton.style.cursor = 'pointer';
+        this.menuPlayButton.style.transition = 'background 0.2s, color 0.2s';
+        this.menuPlayButton.style.margin = '0 auto 18px auto';
+        this.menuPlayButton.style.display = 'block';
+
+        // Горизонтальный Row для Glow/Music (симметрично под Play)
         this.menuButtonsRow = document.createElement('div');
         this.menuButtonsRow.style.display = 'flex';
         this.menuButtonsRow.style.flexDirection = 'row';
         this.menuButtonsRow.style.justifyContent = 'center';
         this.menuButtonsRow.style.alignItems = 'center';
-        this.menuButtonsRow.style.gap = '18px';
+        this.menuButtonsRow.style.gap = '24px';
+        this.menuButtonsRow.style.width = '100%';
+        this.menuButtonsRow.style.boxSizing = 'border-box';
+        this.menuButtonsRow.style.margin = '0 auto';
 
-        // Кнопка Сияние (Glow)
+        // Кнопка Сияние (Glow, слева)
         this.menuGlowButton = document.createElement('button');
         this.menuGlowButton.id = 'menuGlowButton';
         this.menuGlowButton.textContent = this.t.glow;
@@ -197,23 +225,7 @@ export var UI = /*#__PURE__*/ function() {
         this.menuGlowButton.style.cursor = 'pointer';
         this.menuGlowButton.style.transition = 'background 0.2s';
 
-        // Кнопка Play/Continue
-        this.menuPlayButton = document.createElement('button');
-        this.menuPlayButton.id = 'menuPlayButton';
-        this.menuPlayButton.textContent = this.t.play;
-        this.menuPlayButton.style.fontSize = '1.25em';
-        this.menuPlayButton.style.fontWeight = 'bold';
-        this.menuPlayButton.style.padding = '12px 40px';
-        this.menuPlayButton.style.borderRadius = '18px';
-        this.menuPlayButton.style.border = 'none';
-        this.menuPlayButton.style.background = 'linear-gradient(90deg, #39FF14 30%, #FFD700 100%)';
-        this.menuPlayButton.style.color = '#222';
-        this.menuPlayButton.style.boxShadow = '0 2px 12px #00CED1';
-        this.menuPlayButton.style.cursor = 'pointer';
-        this.menuPlayButton.style.transition = 'background 0.2s, color 0.2s';
-        this.menuPlayButton.style.marginTop = '6px';
-
-        // Кнопка Музыка (Music)
+        // Кнопка Музыка (Music, справа)
         this.menuMusicButton = document.createElement('button');
         this.menuMusicButton.id = 'menuMusicButton';
         this.menuMusicButton.textContent = this.t.music;
@@ -228,14 +240,17 @@ export var UI = /*#__PURE__*/ function() {
         this.menuMusicButton.style.cursor = 'pointer';
         this.menuMusicButton.style.transition = 'background 0.2s';
 
-        // Собираем меню-кнопки
+        // Добавляем кнопки Glow/Music в row
         this.menuButtonsRow.appendChild(this.menuGlowButton);
-        this.menuButtonsRow.appendChild(this.menuPlayButton);
         this.menuButtonsRow.appendChild(this.menuMusicButton);
+
+        // Собираем структуру меню-кнопок: Play по центру, Glow/Music ниже
+        this.menuButtonsColumn.appendChild(this.menuPlayButton);
+        this.menuButtonsColumn.appendChild(this.menuButtonsRow);
 
         // Сборка меню
         this.menuCard.appendChild(this.menuTitle);
-        this.menuCard.appendChild(this.menuButtonsRow);
+        this.menuCard.appendChild(this.menuButtonsColumn);
         this.menuOverlay.appendChild(this.menuCard);
         this.container.appendChild(this.menuOverlay);
 
@@ -266,6 +281,7 @@ export var UI = /*#__PURE__*/ function() {
                 button.style.fontSize = '14px';
                 button.style.padding = '8px 12px';
                 button.style.height = '36px';
+                button.style.boxSizing = 'border-box';
                 return button;
             }
         },
@@ -274,7 +290,19 @@ export var UI = /*#__PURE__*/ function() {
             value: function adjustLayout() {
                 const screenWidth = window.innerWidth;
                 const isMobile = screenWidth <= 768;
-                const btnStyle = { fontSize: '14px', padding: '8px 12px', height: '36px' };
+                const btnStyle = { fontSize: '14px', padding: '8px 12px', height: '36px', boxSizing: 'border-box' };
+
+                // Box-sizing для всех ключевых элементов
+                this.menuOverlay.style.boxSizing = 'border-box';
+                this.menuCard.style.boxSizing = 'border-box';
+                this.menuButtonsRow.style.boxSizing = 'border-box';
+                this.menuButtonsColumn.style.boxSizing = 'border-box';
+
+                // Центрируем row
+                this.menuButtonsRow.style.justifyContent = 'center';
+                this.menuButtonsRow.style.alignItems = 'center';
+                this.menuButtonsRow.style.flexWrap = 'wrap';
+                this.menuButtonsRow.style.margin = '0 auto';
 
                 if (isMobile) {
                     this.uiContainer.style.flexDirection = 'column';
@@ -300,11 +328,16 @@ export var UI = /*#__PURE__*/ function() {
                     this.messageElement.style.width = '85%';
                     this.messageElement.style.fontSize = '20px';
 
-                    this.menuCard.style.width = '90vw';
+                    this.menuCard.style.width = '95vw';
+                    this.menuCard.style.maxWidth = '95vw';
+                    this.menuCard.style.minWidth = '0px';
+                    this.menuCard.style.padding = '22px 8vw 18px 8vw';
+
                     this.menuTitle.style.fontSize = '1.6em';
-                    this.menuPlayButton.style.fontSize = '1em';
-                    this.menuGlowButton.style.fontSize = '0.9em';
-                    this.menuMusicButton.style.fontSize = '0.9em';
+                    this.menuPlayButton.style.fontSize = '1.15em';
+                    this.menuGlowButton.style.fontSize = '0.95em';
+                    this.menuMusicButton.style.fontSize = '0.95em';
+                    this.menuButtonsRow.style.gap = '16px';
                 } else {
                     this.uiContainer.style.flexDirection = 'row';
                     this.uiContainer.style.justifyContent = 'space-between';
@@ -330,10 +363,15 @@ export var UI = /*#__PURE__*/ function() {
                     this.messageElement.style.fontSize = '24px';
 
                     this.menuCard.style.width = 'min(90vw, 420px)';
+                    this.menuCard.style.maxWidth = '98vw';
+                    this.menuCard.style.minWidth = '230px';
+                    this.menuCard.style.padding = '32px 22px 24px 22px';
+
                     this.menuTitle.style.fontSize = '2.2em';
                     this.menuPlayButton.style.fontSize = '1.25em';
                     this.menuGlowButton.style.fontSize = '1em';
                     this.menuMusicButton.style.fontSize = '1em';
+                    this.menuButtonsRow.style.gap = '24px';
                 }
             }
         },
@@ -371,27 +409,19 @@ export var UI = /*#__PURE__*/ function() {
             key: "setSaveCallback",
             value: function setSaveCallback(callback) {
                 this.saveButton.onclick = async () => {
-                    // Меняем цвет на серый во время сохранения
                     this.saveButton.style.backgroundColor = '#6c757d';
                     this.saveButton.textContent = this.t.saving;
                     
                     try {
                         await callback();
-                        
-                        // Показываем успех
                         this.saveButton.style.backgroundColor = '#28a745';
                         this.saveButton.textContent = this.t.saved;
-                        
-                        // Возвращаем исходный текст через 2 секунды
                         setTimeout(() => {
                             this.saveButton.textContent = this.t.save;
                         }, 2000);
                     } catch (e) {
-                        // Показываем ошибку
                         this.saveButton.style.backgroundColor = '#dc3545';
                         this.saveButton.textContent = this.t.saveError;
-                        
-                        // Возвращаем исходный текст и цвет через 2 секунды
                         setTimeout(() => {
                             this.saveButton.style.backgroundColor = '#28a745';
                             this.saveButton.textContent = this.t.save;
@@ -458,7 +488,6 @@ export var UI = /*#__PURE__*/ function() {
             }
         },
         {
-            // Новый метод для установки колбэка при изменении состояния меню
             key: "setMenuStateChangeCallback",
             value: function setMenuStateChangeCallback(callback) {
                 this.onMenuStateChange = callback;
@@ -469,7 +498,7 @@ export var UI = /*#__PURE__*/ function() {
             value: function showMenu(isContinue = false) {
                 this.menuPlayButton.textContent = isContinue ? this.t.continue : this.t.play;
                 this.menuOverlay.style.display = 'flex';
-                // Вызываем колбэк при открытии меню
+                this.adjustLayout();
                 if (this.onMenuStateChange) this.onMenuStateChange(true);
             }
         },
@@ -477,7 +506,6 @@ export var UI = /*#__PURE__*/ function() {
             key: "hideMenu",
             value: function hideMenu() {
                 this.menuOverlay.style.display = 'none';
-                // Вызываем колбэк при закрытии меню
                 if (this.onMenuStateChange) this.onMenuStateChange(false);
             }
         }

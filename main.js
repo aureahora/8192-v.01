@@ -223,6 +223,15 @@ async function startGameAfterSDK() {
 
             // --- Glow/Сияние на меню ---
             ui.setMenuGlowCallback(function() {
+                // Добавляем безопасную проверку на существование game и sceneSetup
+                if (!game || !game.sceneSetup) {
+                    // Можно визуально показать подсказку — например, временно изменить текст кнопки
+                    ui.menuGlowButton.textContent = ui.t.glow + " (Недоступно)";
+                    setTimeout(() => {
+                        ui.menuGlowButton.textContent = ui.t.glow;
+                    }, 1200);
+                    return false;
+                }
                 game.isGlowBright = !game.isGlowBright;
                 game.sceneSetup.setGlowMode(game.isGlowBright);
                 uiUpdateGlowMenu(game, game.isGlowBright);
