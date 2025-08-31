@@ -276,7 +276,14 @@ export var SceneSetup = /*#__PURE__*/ function() {
             // Starts the background transition
             key: "setGlowMode",
             value: function setGlowMode(isBright) {
-                if (this.isTransitioning) return; // Don't start a new one if already transitioning
+                if (this.isTransitioning) return false; // Возвращаем false, если уже идет переход
+                
+                // Проверяем, что backgroundMaterial инициализирован
+                if (!this.backgroundMaterial || !this.backgroundMaterial.uniforms) {
+                    console.warn("[SceneSetup] setGlowMode: backgroundMaterial не инициализирован");
+                    return false;
+                }
+                
                 this.targetIsBright = isBright; // Store the final target state
                 // --- Immediately update particle base colors based on the target mode ---
                 if (this.particleGeometry && this.originalParticleBaseColors) {
@@ -331,7 +338,8 @@ export var SceneSetup = /*#__PURE__*/ function() {
                 }
                 this.isTransitioning = true;
                 this.transitionStartTime = this.clock.getElapsedTime(); // Use internal clock
-            // IMPORTANT: Bloom pass settings will be updated in updateShaderTransition when done
+                
+                return true; // Возвращаем true, если переход запущен успешно
             }
         },
         {
